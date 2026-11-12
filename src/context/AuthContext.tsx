@@ -42,7 +42,13 @@ export interface AuthContextValue {
   signInError: string | null;
   /** Why the last session ended (shown as a notice on the login screen). */
   lastSignOutReason: SignOutReason | null;
-  signIn: () => Promise<void>;
+  /** Email + password (shared with SNV2). */
+  signInWithPassword: (email: string, password: string) => Promise<void>;
+  /** Google — only offered when enabled in VITE_SIGN_IN_METHODS. */
+  signInWithGoogle: () => Promise<void>;
+  /** Resolves with an error message, or `null` when the reset email was requested. */
+  sendPasswordReset: (email: string) => Promise<string | null>;
+  clearSignInError: () => void;
   signOut: (reason?: SignOutReason) => Promise<void>;
   /** Re-check access (normally automatic via the live subscription). */
   refreshAccess: () => Promise<void>;
@@ -135,13 +141,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [evaluate, unwatch]);
 
-  const signIn = useCallback(async () => {
+  /** Shared wrapper: one loading flag, one error channel, fresh idle window. */
+  const runSignIn = useCallback(async (attempt: () => Promise<void>) => {
     setIsSigningIn(true);
     setSignInError(null);
     setLastSignOutReason(null);
     recordActivity(); // start a fresh inactivity window for the new session
     try {
-      await authService.signInWithGoogle();
+      await attempt();
     } catch (error) {
       const friendly = toFriendlyAuthError(error);
       if (friendly.message) logger.warn('Sign-in failed', { code: friendly.code });
@@ -150,6 +157,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsSigningIn(false);
     }
   }, []);
+
+  const signInWithPassword = useCallback(
+    (email: string, password: string) => runSignIn(() => authService.signInWithPassword(email, password)),
+    [runSignIn],
+  );
+
+  const signInWithGoogle = useCallback(() => runSignIn(() => authService.signInWithGoogle()), [runSignIn]);
+
+  const sendPasswordReset = useCallback(async (email: string): Promise<string | null> => {
+    try {
+      await authService.sendPasswordReset(email);
+      return null;
+    } catch (error) {
+      const code = (error as { code?: string }).code;
+      // Never reveal whether an account exists for this email.
+      if (code === 'auth/user-not-found') return null;
+      return toFriendlyAuthError(error).message ?? 'Could not send the reset email. Please try again.';
+    }
+  }, []);
+
+  const clearSignInError = useCallback(() => setSignInError(null), []);
 
   const signOut = useCallback(
     async (reason: SignOutReason = 'user') => {
@@ -175,8 +203,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [evaluate]);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ state, isSigningIn, signInError, lastSignOutReason, signIn, signOut, refreshAccess }),
-    [state, isSigningIn, signInError, lastSignOutReason, signIn, signOut, refreshAccess],
+    () => ({
+      state,
+      isSigningIn,
+      signInError,
+      lastSignOutReason,
+      signInWithPassword,
+      signInWithGoogle,
+      sendPasswordReset,
+      clearSignInError,
+      signOut,
+      refreshAccess,
+    }),
+    [state, isSigningIn, signInError, lastSignOutReason, signInWithPassword, signInWithGoogle, sendPasswordReset, clearSignInError, signOut, refreshAccess],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

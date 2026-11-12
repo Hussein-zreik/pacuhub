@@ -18,8 +18,7 @@ React 19 · TypeScript (strict) · Vite 7 · Tailwind CSS 4 · React Router 7 ·
 
 ```bash
 npm install
-cp .env.example .env.local   # fill in the Firebase web config
-npm run dev                  # http://localhost:5173
+npm run dev                  # http://localhost:5173 (project config is in .env)
 ```
 
 Without a Firebase config, the app shows a **Configuration required** screen listing what's missing. It does not crash.
@@ -38,9 +37,11 @@ Without a Firebase config, the app shows a **Configuration required** screen lis
 
 ## Configuration
 
-All settings live in `.env.local`. See [`.env.example`](.env.example) for the full list with explanations. Key settings:
+Shared settings live in [`.env`](.env) (committed; the Firebase web config is public by design). Put personal overrides in `.env.local`. [`.env.example`](.env.example) lists every option. Key settings:
 
-- **`VITE_ALLOWED_EMAIL_DOMAINS`**: restricts sign-in to institutional accounts
+- **`VITE_SIGN_IN_METHODS`**: `password` (default, using the same accounts as SNV2) and/or `google`
+
+- **`VITE_ALLOWED_EMAIL_DOMAINS`**: restricts sign-in to institutional email addresses
 - **`VITE_IDLE_TIMEOUT_MINUTES`**: auto sign-out (default 5, with a 60-second warning)
 - **`VITE_SNV2_URL`** / **`VITE_SNV2_MODE`**: schedule integration (`launch` or `embed`)
 

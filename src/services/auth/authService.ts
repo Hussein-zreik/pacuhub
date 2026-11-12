@@ -6,6 +6,8 @@ import {
   GoogleAuthProvider,
   getRedirectResult,
   onAuthStateChanged,
+  sendPasswordResetEmail,
+  signInWithEmailAndPassword,
   signInWithPopup,
   signInWithRedirect,
   signOut as firebaseSignOut,
@@ -27,6 +29,16 @@ export const toHubUser = (user: User): HubUser => ({
 });
 
 export const authService = {
+  /** Email + password — the same accounts staff use for SNV2. */
+  async signInWithPassword(email: string, password: string): Promise<void> {
+    await signInWithEmailAndPassword(firebaseAuth(), email.trim(), password);
+  },
+
+  /** Sends Firebase's password-reset email. */
+  async sendPasswordReset(email: string): Promise<void> {
+    await sendPasswordResetEmail(firebaseAuth(), email.trim());
+  },
+
   /** Popup first (keeps app state); falls back to redirect if popups are blocked. */
   async signInWithGoogle(): Promise<void> {
     const auth = firebaseAuth();

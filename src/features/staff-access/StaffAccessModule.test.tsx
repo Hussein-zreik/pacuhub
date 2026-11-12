@@ -21,7 +21,7 @@ function renderModule() {
   const auth: AuthContextValue = {
     state: { status: 'authorized', user: admin, roles: ['admin'], capabilities: capabilitiesFor(['admin']) },
     isSigningIn: false, signInError: null, lastSignOutReason: null,
-    signIn: vi.fn(), signOut: vi.fn(), refreshAccess: vi.fn(),
+    signInWithPassword: vi.fn(), signInWithGoogle: vi.fn(), sendPasswordReset: vi.fn(), clearSignInError: vi.fn(), signOut: vi.fn(), refreshAccess: vi.fn(),
   };
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(

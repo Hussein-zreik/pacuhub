@@ -28,6 +28,8 @@ const envSchema = z.object({
   VITE_FIREBASE_APP_ID: optionalString,
 
   VITE_ALLOWED_EMAIL_DOMAINS: csvList,
+  /** Which sign-in options the login screen offers. */
+  VITE_SIGN_IN_METHODS: csvList.pipe(z.array(z.enum(['password', 'google'])).min(1)).catch(['password']),
 
   VITE_IDLE_TIMEOUT_MINUTES: z.coerce.number().min(1).max(60).default(5),
   VITE_IDLE_WARNING_SECONDS: z.coerce.number().int().min(0).max(300).default(60),
@@ -45,10 +47,14 @@ export interface FirebaseWebConfig {
   appId: string;
 }
 
+export type SignInMethod = 'password' | 'google';
+
 export interface AppEnv {
   /** `null` when the Firebase web config is incomplete. */
   firebase: FirebaseWebConfig | null;
   allowedEmailDomains: string[];
+  /** Sign-in options on the login screen. Default: email + password only. */
+  signInMethods: SignInMethod[];
   idleTimeoutMs: number;
   idleWarningMs: number;
   snv2: { url: string | null; mode: 'embed' | 'launch' };
@@ -106,6 +112,7 @@ export function parseEnv(raw: Record<string, unknown>): AppEnv {
   return {
     firebase,
     allowedEmailDomains: config.VITE_ALLOWED_EMAIL_DOMAINS,
+    signInMethods: [...new Set(config.VITE_SIGN_IN_METHODS)],
     idleTimeoutMs,
     idleWarningMs,
     snv2: { url: config.VITE_SNV2_URL ?? null, mode: config.VITE_SNV2_MODE },

@@ -29,7 +29,7 @@ function renderWith(state: AuthState) {
     isSigningIn: false,
     signInError: null,
     lastSignOutReason: null,
-    signIn: vi.fn(),
+    signInWithPassword: vi.fn(), signInWithGoogle: vi.fn(), sendPasswordReset: vi.fn(), clearSignInError: vi.fn(),
     signOut: vi.fn(),
     refreshAccess: vi.fn(),
   };

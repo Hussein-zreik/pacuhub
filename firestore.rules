@@ -36,12 +36,16 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // Optional: restrict sign-up to institutional accounts. To enable, replace
-    // the body with e.g.:
-    //   return request.auth.token.email_verified == true
+    // The account must carry an email (Firebase sets it from the sign-in).
+    // Email verification is NOT required: staff accounts are created by the
+    // unit (shared with SNV2) and are typically unverified. Access is still
+    // gated by admin approval in Staff Access.
+    //
+    // Optional: restrict to institutional addresses, e.g.:
+    //   return request.auth.token.email is string
     //       && request.auth.token.email.matches('.*@(aub[.]edu[.]lb|aubmc[.]org[.]lb)$');
-    function institutionalEmail() {
-      return request.auth.token.email_verified == true;
+    function hasAccountEmail() {
+      return request.auth.token.email is string && request.auth.token.email.size() > 3;
     }
 
     function profile() {
@@ -81,7 +85,7 @@ service cloud.firestore {
       // First sign-in: create own record as a pending request with no roles.
       allow create: if signedIn()
         && request.auth.uid == uid
-        && institutionalEmail()
+        && hasAccountEmail()
         && request.resource.data.keys().hasOnly(
              ['uid', 'email', 'displayName', 'photoURL', 'roles', 'status', 'createdAt', 'lastSignInAt'])
         && request.resource.data.uid == uid

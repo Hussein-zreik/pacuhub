@@ -85,7 +85,8 @@ initializing ─┬─► signedOut                 → Login
                              └─► error        → Retry screen (never a lock-out)
 ```
 
-- **Sign-in:** Google popup, with automatic fallback to redirect if popups are blocked. `prompt=select_account` is always set, so the next nurse on a shared workstation never silently inherits the previous Google session.
+- **Sign-in:** **email + password, using the same Firebase accounts as SNV2** (one login for both apps). Every credential failure shows the same message, so the screen never reveals which emails have accounts. "Forgot password?" sends Firebase's reset email.
+  - **Google sign-in is supported but off** (`VITE_SIGN_IN_METHODS`). In this shared project it could replace an SNV2 user's password login. If it's ever enabled, it uses a popup that falls back to redirect, with `prompt=select_account` set so the next nurse on a shared workstation never inherits the previous Google session.
 - **Single source of truth:** each user's Firestore record `pacuhub_users/{uid}` holds their `roles[]` and `status`. Setup steps are in [ACCESS_SETUP.md](ACCESS_SETUP.md).
   - **First sign-in** creates a *pending request* (`services/users/userProfileService.ts → ensureUserProfile`).
   - **Live subscription:** the app watches the user's own record, so approvals, role changes and revocations apply to open sessions within seconds. A revocation also clears the data cache.
@@ -99,7 +100,7 @@ initializing ─┬─► signedOut                 → Login
 
 The UI only *shows or hides*. The rules *enforce*:
 
-- Users can create only their **own** record, and only as `pending` with no roles. Their email must match their Google token.
+- Users can create only their **own** record, and only as `pending` with no roles. Their email must match their sign-in token. Verification isn't required, because unit-created accounts are unverified; admin approval is the gate.
 - Users can update only their name, photo and last sign-in, **never** their roles or status.
 - Only an **active admin** can change another user's `roles` and `status`. The change is validated against the known roles and statuses and stamped with `updatedBy` and `updatedAt`.
 - Admins **cannot edit their own record**, which prevents an admin from locking themselves out.

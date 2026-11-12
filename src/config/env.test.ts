@@ -21,6 +21,13 @@ describe('parseEnv', () => {
     expect(env.idleTimeoutMs).toBe(5 * 60_000);
     expect(env.idleWarningMs).toBe(60_000);
     expect(env.snv2).toEqual({ url: null, mode: 'launch' });
+    expect(env.signInMethods).toEqual(['password']);
+  });
+
+  it('parses sign-in methods and falls back to password-only on bad values', () => {
+    expect(parseEnv({ ...firebase, VITE_SIGN_IN_METHODS: 'password, google' }).signInMethods).toEqual(['password', 'google']);
+    expect(parseEnv({ ...firebase, VITE_SIGN_IN_METHODS: 'google' }).signInMethods).toEqual(['google']);
+    expect(parseEnv({ ...firebase, VITE_SIGN_IN_METHODS: 'facebook' }).signInMethods).toEqual(['password']);
   });
 
   it('treats blank .env values as unset', () => {

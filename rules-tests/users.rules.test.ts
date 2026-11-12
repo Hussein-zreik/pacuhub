@@ -66,9 +66,14 @@ describe('first sign-in (access request)', () => {
     await assertFails(setDoc(doc(as('nurse'), USERS, 'nurse'), { ...pendingRequest('nurse'), isAdmin: true }));
   });
 
-  it('requires a verified email', async () => {
+  it('accepts unverified emails (unit-created email/password accounts shared with SNV2)', async () => {
     const db = env.authenticatedContext('nurse', { email: 'nurse@aub.edu.lb', email_verified: false }).firestore() as unknown as Firestore;
-    await assertFails(setDoc(doc(db, USERS, 'nurse'), pendingRequest('nurse')));
+    await assertSucceeds(setDoc(doc(db, USERS, 'nurse'), pendingRequest('nurse')));
+  });
+
+  it('requires the account to have an email', async () => {
+    const db = env.authenticatedContext('noemail', {}).firestore() as unknown as Firestore;
+    await assertFails(setDoc(doc(db, USERS, 'noemail'), { ...pendingRequest('noemail'), email: null }));
   });
 
   it('signed-out visitors cannot create anything', async () => {
