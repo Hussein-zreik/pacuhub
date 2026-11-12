@@ -86,7 +86,7 @@ initializing ─┬─► signedOut                 → Login
 ```
 
 - **Sign-in:** Google popup, with automatic fallback to redirect if popups are blocked. `prompt=select_account` is always set, so the next nurse on a shared workstation never silently inherits the previous Google session.
-- **Single source of truth:** each user's Firestore record `users/{uid}` holds their `roles[]` and `status`. Setup steps are in [ACCESS_SETUP.md](ACCESS_SETUP.md).
+- **Single source of truth:** each user's Firestore record `pacuhub_users/{uid}` holds their `roles[]` and `status`. Setup steps are in [ACCESS_SETUP.md](ACCESS_SETUP.md).
   - **First sign-in** creates a *pending request* (`services/users/userProfileService.ts → ensureUserProfile`).
   - **Live subscription:** the app watches the user's own record, so approvals, role changes and revocations apply to open sessions within seconds. A revocation also clears the data cache.
   - **Access rule:** `status === 'active'` **and** at least one known role (`services/users/access.ts → decideAccess`). Malformed data fails closed: unknown roles are dropped, and an unknown status reads as pending.
@@ -133,7 +133,7 @@ The UI only *shows or hides*. The rules *enforce*:
 | Area | Current default | Waiting on |
 |---|---|---|
 | Role matrix | Provisional draft in `config/permissions.ts` | Confirmation of B3 |
-| Role storage | ✅ Decided: Firestore `users/{uid}` + Staff Access module | — |
+| Role storage | ✅ Decided: Firestore `pacuhub_users/{uid}` + Staff Access module | — |
 | SNV2 | `launch` mode (new tab) | C1–C4 (hosting/auth, whether framing is allowed) |
 | Forms engine | Not yet built | E1–E5 (form list, fields, sign-off rules) |
 | Audits | Not yet built | F1–F5 (items, scoring, thresholds, exports) |

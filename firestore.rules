@@ -6,7 +6,10 @@ rules_version = '2';
 // These rules are the REAL access control. The app's UI hides things a user
 // can't do, but only these rules actually prevent it.
 //
-// Access model (users/{uid}):
+// All PACU Hub data lives in collections prefixed `pacuhub_` so it can never
+// collide with SNV2's data in the same Firebase project.
+//
+// Access model (pacuhub_users/{uid}):
 //   1. On first sign-in, a user may create their OWN record, and only as a
 //      pending request with no roles.
 //   2. A user may refresh their own name/photo/last-sign-in — never their
@@ -18,9 +21,10 @@ rules_version = '2';
 //
 // Anything not explicitly allowed below is denied by default.
 //
-// ⚠️ If this Firebase project already has rules for other collections (for
-// example SNV2 data), MERGE this `users` block into them — do not replace
-// the existing rules file wholesale.
+// ⚠️ This Firebase project is shared with SNV2. Do NOT replace its existing
+// rules: paste the helper functions and the `match /pacuhub_users/{uid}`
+// block INSIDE the existing `match /databases/{database}/documents { … }`.
+// If a helper name (e.g. signedIn) already exists there, keep one copy.
 // ─────────────────────────────────────────────────────────────────────────────
 
 service cloud.firestore {
@@ -41,12 +45,12 @@ service cloud.firestore {
     }
 
     function profile() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+      return get(/databases/$(database)/documents/pacuhub_users/$(request.auth.uid)).data;
     }
 
     function isActive() {
       return signedIn()
-        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && exists(/databases/$(database)/documents/pacuhub_users/$(request.auth.uid))
         && profile().status == 'active';
     }
 
@@ -70,7 +74,7 @@ service cloud.firestore {
 
     // ── Staff access records ─────────────────────────────────────────────────
 
-    match /users/{uid} {
+    match /pacuhub_users/{uid} {
       // Users read their own record; admins read everyone (staff list).
       allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
 

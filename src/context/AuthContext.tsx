@@ -9,7 +9,7 @@
  *                                ├─► unauthorized (pending request, or deactivated)
  *                                └─► error        (couldn't verify — retryable)
  *
- * Access comes from the user's `users/{uid}` record, watched LIVE: when an
+ * Access comes from the user's `pacuhub_users/{uid}` record, watched LIVE: when an
  * admin approves, changes or revokes access, every open session of that user
  * updates within seconds — no sign-out/sign-in needed.
  */

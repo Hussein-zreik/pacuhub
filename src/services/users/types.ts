@@ -3,7 +3,7 @@ import type { Role } from '@/config/permissions';
 export const ACCESS_STATUSES = ['pending', 'active', 'disabled'] as const;
 export type AccessStatus = (typeof ACCESS_STATUSES)[number];
 
-/** A staff member's access record — `users/{uid}` in Firestore. */
+/** A staff member's access record — `pacuhub_users/{uid}` in Firestore. */
 export interface UserProfile {
   uid: string;
   email: string | null;

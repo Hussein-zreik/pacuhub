@@ -1,5 +1,5 @@
 /**
- * Staff access records (`users/{uid}`) — the only module that reads or
+ * Staff access records (`pacuhub_users/{uid}`) — the only module that reads or
  * writes them. Every write here is shaped to satisfy firestore.rules exactly;
  * see rules-tests/ for the executable specification.
  */
