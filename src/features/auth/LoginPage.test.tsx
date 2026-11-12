@@ -73,7 +73,6 @@ describe('LoginPage (email + password)', () => {
     const auth = renderLogin();
     await user.type(screen.getByLabelText('Email'), 'nurse@aub.edu.lb');
     await user.click(screen.getByRole('button', { name: /forgot password/i }));
-    expect(screen.getByText(/also use this account for snv2/i)).toBeInTheDocument();
     expect(screen.getByLabelText('Email')).toHaveValue('nurse@aub.edu.lb');
     await user.click(screen.getByRole('button', { name: /send reset link/i }));
     expect(auth.sendPasswordReset).toHaveBeenCalledWith('nurse@aub.edu.lb');

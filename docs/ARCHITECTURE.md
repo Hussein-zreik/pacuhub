@@ -85,8 +85,9 @@ initializing ─┬─► signedOut                 → Login
                              └─► error        → Retry screen (never a lock-out)
 ```
 
-- **Sign-in:** **email + password, using the same Firebase accounts as SNV2** (one login for both apps). Every credential failure shows the same message, so the screen never reveals which emails have accounts. "Forgot password?" sends Firebase's reset email.
-  - **Google sign-in is supported but off** (`VITE_SIGN_IN_METHODS`). In this shared project it could replace an SNV2 user's password login. If it's ever enabled, it uses a popup that falls back to redirect, with `prompt=select_account` set so the next nurse on a shared workstation never inherits the previous Google session.
+- **Separate Firebase project:** PACU Hub has its own Firebase project, isolated from SNV2 (`schedule-nursing-f14e5`). SNV2 is a single-manager app whose rules treat any password account as a manager, so sharing its project would have weakened SNV2's security.
+- **Sign-in:** **email + password**, with accounts the Nurse Manager creates for each person. Self sign-up is closed. Every credential failure shows the same message, so the screen never reveals which emails have accounts. "Forgot password?" sends Firebase's reset email.
+  - **Google sign-in is supported but off** (`VITE_SIGN_IN_METHODS`). If it's ever enabled, it uses a popup that falls back to redirect, with `prompt=select_account` set so the next nurse on a shared workstation never inherits the previous Google session.
 - **Single source of truth:** each user's Firestore record `pacuhub_users/{uid}` holds their `access` map and `status`. Setup steps are in [ACCESS_SETUP.md](ACCESS_SETUP.md).
   - **First sign-in** creates a *pending request* (`services/users/userProfileService.ts → ensureUserProfile`).
   - **Live subscription:** the app watches the user's own record, so approvals, role changes and revocations apply to open sessions within seconds. A revocation also clears the data cache.
@@ -139,7 +140,7 @@ The UI only *shows or hides*. The rules *enforce*:
 |---|---|---|
 | Access model | ✅ Decided: per-person, per-tab levels, per-audit-type for Audits, templates, 2 admins | — |
 | Access storage | ✅ Decided: Firestore `pacuhub_users/{uid}` + Staff Access module | — |
-| SNV2 | `launch` mode (new tab) | C1–C4 (hosting/auth, whether framing is allowed) |
+| SNV2 | Hosted at `https://hussein-zreik.github.io/SNV2/` (GitHub Pages, single manager login) | What nurses see in the Schedule tab |
 | Forms engine | Not yet built | E1–E5 (form list, fields, sign-off rules) |
 | Audits | Not yet built | F1–F5 (items, scoring, thresholds, exports) |
 | Patient identifiers | None stored | D1 (PHI decision drives rules and retention) |

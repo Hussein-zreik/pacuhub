@@ -29,7 +29,7 @@ export const toHubUser = (user: User): HubUser => ({
 });
 
 export const authService = {
-  /** Email + password — the same accounts staff use for SNV2. */
+  /** Email + password — accounts the Nurse Manager creates for each person. */
   async signInWithPassword(email: string, password: string): Promise<void> {
     await signInWithEmailAndPassword(firebaseAuth(), email.trim(), password);
   },

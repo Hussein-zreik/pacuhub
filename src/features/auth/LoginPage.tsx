@@ -1,9 +1,9 @@
 /**
  * Branded sign-in portal.
  *
- * Staff sign in with the SAME email + password they use for SNV2 (same
- * Firebase project, same accounts). Google sign-in can be offered as well via
- * VITE_SIGN_IN_METHODS, but is off by default — see docs/ACCESS_SETUP.md.
+ * Staff sign in with the email + password the Nurse Manager created for them
+ * (PACU Hub's own Firebase project). Google sign-in can also be offered via
+ * VITE_SIGN_IN_METHODS, but is off by default.
  */
 import { ArrowLeft, CalendarDays, ClipboardCheck, ClipboardList, Eye, EyeOff, MailCheck, ShieldCheck } from 'lucide-react';
 import { useId, useState, type FormEvent } from 'react';
@@ -196,9 +196,6 @@ function ResetForm({ email, setEmail, onBack }: { email: string; setEmail: (v: s
       ) : (
         <>
           <p className="mt-1.5 text-sm text-ink-muted">We'll email you a link to choose a new password.</p>
-          <Alert tone="info" className="mt-4">
-            If you also use this account for SNV2, this changes that password too.
-          </Alert>
           <form className="mt-6 space-y-4" onSubmit={(e) => void submit(e)} noValidate>
             <Field label="Email" htmlFor={emailId}>
               <Input

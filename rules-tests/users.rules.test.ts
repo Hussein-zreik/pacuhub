@@ -67,7 +67,7 @@ describe('first sign-in (access request)', () => {
     await assertFails(setDoc(doc(as('nurse'), USERS, 'nurse'), { ...pendingRequest('nurse'), isAdmin: true }));
   });
 
-  it('accepts unverified emails (unit-created email/password accounts shared with SNV2)', async () => {
+  it('accepts unverified emails (accounts created by the Nurse Manager)', async () => {
     const db = env.authenticatedContext('nurse', { email: 'nurse@aub.edu.lb', email_verified: false }).firestore() as unknown as Firestore;
     await assertSucceeds(setDoc(doc(db, USERS, 'nurse'), pendingRequest('nurse')));
   });
@@ -211,7 +211,7 @@ describe('admin access management', () => {
 });
 
 describe('everything else', () => {
-  it("PACU Hub rules grant nothing on SNV2-style collections (e.g. `users`)", async () => {
+  it("grants nothing on collections outside PACU Hub's (e.g. `users`)", async () => {
     await seed('boss', { status: 'active', access: ADMIN });
     await assertFails(getDoc(doc(as('boss'), 'users', 'boss')));
     await assertFails(setDoc(doc(as('boss'), 'users', 'boss'), { role: 'admin' }));

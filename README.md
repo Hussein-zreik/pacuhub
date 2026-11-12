@@ -5,7 +5,7 @@ The digital workspace for the **AUBMC Post-Anesthesia Care Unit**: one place for
 | Module | Status |
 |---|---|
 | Home | ✅ Live |
-| Schedule (SNV2) | ✅ Live — launchpad or embedded, set in config |
+| Schedule (SNV2) | 🛠 Shell in place; design for nurses vs. manager pending |
 | PACU Forms | 🛠 Shell in place; forms pending definitions |
 | Unit Audits | 🛠 Shell in place; audit tools pending definitions |
 | Staff Access (admin) | ✅ Live: approve requests, set access per tab and per audit type, deactivate |
@@ -21,9 +21,9 @@ npm install
 npm run dev                  # http://localhost:5173 (project config is in .env)
 ```
 
-Without a Firebase config, the app shows a **Configuration required** screen listing what's missing. It does not crash.
+Until `.env` holds the PACU Hub Firebase config, the app shows a **Configuration required** screen listing what's missing. It does not crash.
 
-**First deployment:** publish the security rules and create the first admin. Follow [docs/ACCESS_SETUP.md](docs/ACCESS_SETUP.md). It takes about 5 minutes.
+**First deployment:** create the PACU Hub Firebase project, publish the security rules and create the first admin. Follow [docs/ACCESS_SETUP.md](docs/ACCESS_SETUP.md). It takes about 15 minutes.
 
 ## Scripts
 
@@ -39,7 +39,7 @@ Without a Firebase config, the app shows a **Configuration required** screen lis
 
 Shared settings live in [`.env`](.env) (committed; the Firebase web config is public by design). Put personal overrides in `.env.local`. [`.env.example`](.env.example) lists every option. Key settings:
 
-- **`VITE_SIGN_IN_METHODS`**: `password` (default, using the same accounts as SNV2) and/or `google`
+- **`VITE_SIGN_IN_METHODS`**: `password` (default; accounts created by the Nurse Manager) and/or `google`
 
 - **`VITE_ALLOWED_EMAIL_DOMAINS`**: restricts sign-in to institutional email addresses
 - **`VITE_IDLE_TIMEOUT_MINUTES`**: auto sign-out (default 5, with a 60-second warning)
@@ -49,10 +49,11 @@ Shared settings live in [`.env`](.env) (committed; the Firebase web config is pu
 
 ```bash
 npm run build
-firebase deploy --only hosting   # deploys the web app only; rules and backend are untouched
+firebase deploy --only hosting           # the web app
+firebase deploy --only firestore:rules   # the security rules (after `npm run test:rules`)
 ```
 
-Security rules are published separately, by pasting them in the Console. See [ACCESS_SETUP.md](docs/ACCESS_SETUP.md). This is deliberate: it stops a routine web deploy from overwriting rules that other apps in the same Firebase project may depend on.
+PACU Hub has its own Firebase project, so deploying its rules can't affect any other app. Pasting them in the Console works too; see [ACCESS_SETUP.md](docs/ACCESS_SETUP.md).
 
 `firebase.json` sets SPA routing, security headers and long-lived caching for hashed assets.
 

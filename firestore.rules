@@ -6,8 +6,9 @@ rules_version = '2';
 // These rules are the REAL access control. The app's UI hides things a user
 // can't do, but only these rules actually prevent it.
 //
-// All PACU Hub data lives in collections prefixed `pacuhub_` so it can never
-// collide with SNV2's data in the same Firebase project.
+// These rules are for PACU Hub's OWN Firebase project (separate from SNV2).
+// Publish them by replacing the project's rules entirely.
+// All PACU Hub collections are prefixed `pacuhub_` to keep names unambiguous.
 //
 // Access model (pacuhub_users/{uid}):
 //   Each person has an `access` map: tab/area → level, e.g.
@@ -27,10 +28,7 @@ rules_version = '2';
 //
 // Anything not explicitly allowed below is denied by default.
 //
-// ⚠️ This Firebase project is shared with SNV2. Do NOT replace its existing
-// rules: paste the helper functions and the `match /pacuhub_users/{uid}`
-// block INSIDE the existing `match /databases/{database}/documents { … }`.
-// If a helper name (e.g. signedIn) already exists there, keep one copy.
+// Tested: rules-tests/users.rules.test.ts (npm run test:rules).
 // ─────────────────────────────────────────────────────────────────────────────
 
 service cloud.firestore {
@@ -44,8 +42,8 @@ service cloud.firestore {
 
     // The account must carry an email (Firebase sets it from the sign-in).
     // Email verification is NOT required: staff accounts are created by the
-    // unit (shared with SNV2) and are typically unverified. Access is still
-    // gated by admin approval in Staff Access.
+    // Nurse Manager in the console and are typically unverified. Access is
+    // still gated by admin approval in Staff Access.
     //
     // Optional: restrict to institutional addresses, e.g.:
     //   return request.auth.token.email is string

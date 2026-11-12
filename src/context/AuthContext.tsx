@@ -42,7 +42,7 @@ export interface AuthContextValue {
   signInError: string | null;
   /** Why the last session ended (shown as a notice on the login screen). */
   lastSignOutReason: SignOutReason | null;
-  /** Email + password (shared with SNV2). */
+  /** Email + password (accounts created by the Nurse Manager). */
   signInWithPassword: (email: string, password: string) => Promise<void>;
   /** Google — only offered when enabled in VITE_SIGN_IN_METHODS. */
   signInWithGoogle: () => Promise<void>;
