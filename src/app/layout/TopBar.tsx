@@ -1,22 +1,12 @@
 import { LogOut } from 'lucide-react';
-import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router';
+import { useClock } from '@/hooks/useClock';
 import { BrandMark } from '@/components/brand/BrandMark';
 import { Avatar, Badge, Button } from '@/components/ui';
 import { accessLabel } from '@/config/accessPresets';
 import { useAuth } from '@/context/AuthContext';
 import { useModuleRegistry, usePermissionCatalog } from '@/core/modules/ModuleRegistryContext';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
-
-/** Ticks once per minute — enough for a clock, negligible re-render cost. */
-function useClock() {
-  const [now, setNow] = useState(() => new Date());
-  useEffect(() => {
-    const id = window.setInterval(() => setNow(new Date()), 30_000);
-    return () => window.clearInterval(id);
-  }, []);
-  return now;
-}
 
 export function TopBar() {
   const { state, signOut } = useAuth();
