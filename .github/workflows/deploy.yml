@@ -1,0 +1,65 @@
+name: Deploy to Firebase Hosting
+
+# - Pull requests (from this repo): a private PREVIEW link, posted on the PR.
+# - Push to main: the LIVE site, https://pacuhub.web.app
+#
+# Needs the repository secret FIREBASE_SERVICE_ACCOUNT_PACUHUB, created by
+# `firebase init hosting:github` (see docs/DEPLOYMENT.md). Until it exists,
+# the deploy steps are skipped instead of failing.
+#
+# Security rules are NOT deployed here; they are published deliberately
+# (see docs/ACCESS_SETUP.md).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    # Secrets are never available to pull requests from forks.
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    env:
+      HAS_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_PACUHUB != '' }}
+    steps:
+      - name: Deployment key missing
+        if: env.HAS_SERVICE_ACCOUNT != 'true'
+        run: echo "::notice::FIREBASE_SERVICE_ACCOUNT_PACUHUB is not set yet - skipping deploy. See docs/DEPLOYMENT.md."
+
+      - uses: actions/checkout@v4
+        if: env.HAS_SERVICE_ACCOUNT == 'true'
+      - uses: actions/setup-node@v4
+        if: env.HAS_SERVICE_ACCOUNT == 'true'
+        with:
+          node-version: '22'
+          cache: npm
+      - if: env.HAS_SERVICE_ACCOUNT == 'true'
+        run: npm ci && npm test && npm run build
+
+      - name: Deploy preview (pull request)
+        if: env.HAS_SERVICE_ACCOUNT == 'true' && github.event_name == 'pull_request'
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_PACUHUB }}
+          projectId: pacuhub
+          expires: 7d
+
+      - name: Deploy live (main)
+        if: env.HAS_SERVICE_ACCOUNT == 'true' && github.event_name == 'push'
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_PACUHUB }}
+          projectId: pacuhub
+          channelId: live

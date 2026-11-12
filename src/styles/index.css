@@ -1,0 +1,75 @@
+@import 'tailwindcss';
+
+/*
+ * PACU Hub design tokens — AUBMC "white + light blue" theme.
+ *
+ * These are the ONLY place colors are defined. Components use semantic
+ * utilities (bg-brand-600, text-ink, border-line …). When AUBMC's official
+ * hex values are approved, update this block and the whole app follows.
+ *
+ * Contrast: brand-600 on white ≈ 5.2:1, ink on white ≈ 16:1 (WCAG AA+).
+ */
+@theme {
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+
+  --color-brand-50: #f0f7fd;
+  --color-brand-100: #dcedfa;
+  --color-brand-200: #bcdcf5;
+  --color-brand-300: #8ec4ed;
+  --color-brand-400: #5ba7e1;
+  --color-brand-500: #348bd2;
+  --color-brand-600: #1f6fb6;
+  --color-brand-700: #1a5a94;
+  --color-brand-800: #194c7a;
+  --color-brand-900: #183f64;
+
+  --color-canvas: #f5f9fc; /* app background behind cards */
+  --color-surface: #ffffff; /* cards, panels */
+  --color-line: #dbe5ef; /* borders */
+  --color-ink: #0e1e33; /* primary text */
+  --color-ink-muted: #4b5e74; /* secondary text */
+  --color-ink-subtle: #73859a; /* hints, placeholders */
+
+  /* High-contrast clinical status colors */
+  --color-success-50: #ecf8f1;
+  --color-success-600: #0f7a4a;
+  --color-success-700: #0b5f39;
+  --color-warning-50: #fff6e8;
+  --color-warning-600: #b45d00;
+  --color-warning-700: #8f4a00;
+  --color-danger-50: #fdeeee;
+  --color-danger-600: #c22a2a;
+  --color-danger-700: #9c1f1f;
+
+  --radius-card: 0.875rem;
+  --shadow-card: 0 1px 2px rgb(14 30 51 / 0.04), 0 1px 3px rgb(14 30 51 / 0.06);
+  --shadow-raised: 0 4px 12px rgb(14 30 51 / 0.08), 0 2px 4px rgb(14 30 51 / 0.05);
+
+  --animate-shimmer: shimmer 1.6s ease-in-out infinite;
+  @keyframes shimmer {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.45; }
+  }
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    @apply bg-canvas text-ink font-sans antialiased;
+    font-feature-settings: 'cv11', 'ss01';
+  }
+  /* Always-visible keyboard focus — required for accessibility and for staff
+     using keyboard-only workflows on workstations. */
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-brand-500;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}

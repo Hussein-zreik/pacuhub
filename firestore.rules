@@ -1,0 +1,165 @@
+rules_version = '2';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PACU Hub — Firestore Security Rules
+//
+// These rules are the REAL access control. The app's UI hides things a user
+// can't do, but only these rules actually prevent it.
+//
+// These rules are for PACU Hub's OWN Firebase project (separate from SNV2).
+// Publish them by replacing the project's rules entirely.
+// All PACU Hub collections are prefixed `pacuhub_` to keep names unambiguous.
+//
+// Access model (pacuhub_users/{uid}):
+//   Each person has an `access` map: tab/area → level, e.g.
+//     { "schedule": "view", "audits:infection-control": "enter",
+//       "staff-access": "admin" }
+//   A missing key means no access. Unknown values grant nothing.
+//
+//   1. On first sign-in, a user may create their OWN record, and only as a
+//      pending request with NO access.
+//   2. A user may refresh their own name/photo/last-sign-in — never their
+//      access or status.
+//   3. Only an active admin ("staff-access": "admin") may change access.
+//      Admins may adjust their own tab access, but can never remove their
+//      own admin level or deactivate themselves (prevents lockout).
+//   4. Nothing is ever deleted — deactivated users keep their record for the
+//      audit trail.
+//
+// Anything not explicitly allowed below is denied by default.
+//
+// Tested: rules-tests/users.rules.test.ts (npm run test:rules).
+// ─────────────────────────────────────────────────────────────────────────────
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helpers ──────────────────────────────────────────────────────────────
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // The account must carry an email (Firebase sets it from the sign-in).
+    // Email verification is NOT required: staff accounts are created by the
+    // Nurse Manager in the console and are typically unverified. Access is
+    // still gated by admin approval in Staff Access.
+    //
+    // Optional: restrict to institutional addresses, e.g.:
+    //   return request.auth.token.email is string
+    //       && request.auth.token.email.matches('.*@(aub[.]edu[.]lb|aubmc[.]org[.]lb)$');
+    function hasAccountEmail() {
+      return request.auth.token.email is string && request.auth.token.email.size() > 3;
+    }
+
+    function profile() {
+      return get(/databases/$(database)/documents/pacuhub_users/$(request.auth.uid)).data;
+    }
+
+    function isActive() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/pacuhub_users/$(request.auth.uid))
+        && profile().status == 'active';
+    }
+
+    // The person's level in one tab/area, or 'none'.
+    function accessOf(key) {
+      return profile().get('access', {}).get(key, 'none');
+    }
+
+    // Use in future collections' rules, e.g. for audit data:
+    //   allow create: if hasLevel('audits:infection-control', ['enter', 'full']);
+    //   allow read:   if hasLevel('audits:infection-control', ['view', 'enter', 'full']);
+    function hasLevel(key, allowedLevels) {
+      return isActive() && accessOf(key) in allowedLevels;
+    }
+
+    function isAdmin() {
+      return hasLevel('staff-access', ['admin']);
+    }
+
+    // Values are validated by the app; unknown levels grant nothing because
+    // every data rule checks for explicit level names (see hasLevel).
+    function validAccess(access) {
+      return access is map && access.size() <= 64;
+    }
+
+    function optionalString(value) {
+      return value == null || (value is string && value.size() <= 300);
+    }
+
+    // ── Staff access records ─────────────────────────────────────────────────
+
+    match /pacuhub_users/{uid} {
+      // Users read their own record; admins read everyone (staff list).
+      allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
+
+      // First sign-in: create own record as a pending request with no access.
+      allow create: if signedIn()
+        && request.auth.uid == uid
+        && hasAccountEmail()
+        && request.resource.data.keys().hasOnly(
+             ['uid', 'email', 'displayName', 'photoURL', 'access', 'status', 'createdAt', 'lastSignInAt'])
+        && request.resource.data.uid == uid
+        && request.resource.data.email == request.auth.token.email
+        && optionalString(request.resource.data.displayName)
+        && optionalString(request.resource.data.photoURL)
+        && request.resource.data.access == {}
+        && request.resource.data.status == 'pending'
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.lastSignInAt == request.time;
+
+      // Self-service: refresh own profile details only.
+      allow update: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['displayName', 'photoURL', 'lastSignInAt'])
+        && optionalString(request.resource.data.displayName)
+        && optionalString(request.resource.data.photoURL)
+        && request.resource.data.lastSignInAt == request.time;
+
+      // Admin: grant / change / revoke ANOTHER user's access.
+      allow update: if isAdmin()
+        && request.auth.uid != uid
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['access', 'status', 'updatedAt', 'updatedBy'])
+        && validAccess(request.resource.data.access)
+        && request.resource.data.status in ['pending', 'active', 'disabled']
+        // An active account must have access to at least one tab.
+        && (request.resource.data.status != 'active' || request.resource.data.access.size() > 0)
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.updatedAt == request.time;
+
+      // Admin: adjust their OWN tab access — but the admin level must stay,
+      // and status can't change (no self-deactivation / lockout).
+      allow update: if isAdmin()
+        && request.auth.uid == uid
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['access', 'updatedAt', 'updatedBy'])
+        && validAccess(request.resource.data.access)
+        && request.resource.data.access.get('staff-access', 'none') == 'admin'
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.updatedAt == request.time;
+
+      allow delete: if false;
+    }
+
+    // ── Schedule settings ────────────────────────────────────────────────────
+    // The SNV2 staff request link. Kept here (not in the public code) because
+    // its form id opens the request form and its staff name list.
+    match /pacuhub_settings/schedule {
+      allow read: if hasLevel('schedule', ['view', 'manage']);
+
+      allow create, update: if hasLevel('schedule', ['manage'])
+        && request.resource.data.keys().hasOnly(['requestLink', 'updatedAt', 'updatedBy'])
+        && (request.resource.data.requestLink == null
+            || (request.resource.data.requestLink is string
+                && request.resource.data.requestLink.matches(
+                     '^https://hussein-zreik[.]github[.]io/SNV2/request[.]html[?]f=[A-Za-z0-9]{20,40}$')))
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.updatedAt == request.time;
+
+      allow delete: if false;
+    }
+  }
+}
