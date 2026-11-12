@@ -1,0 +1,127 @@
+# PACU Hub — Architecture
+
+## 1. Goals that drive every decision
+
+1. **Isolation.** A bug in one module must never break another module or the shell.
+2. **Extension without modification.** New tabs, forms and audits are *added*, never *edited into* core code.
+3. **Clinical ergonomics.** It should be fast, legible, work well with touch, and take as few clicks as possible under pressure.
+4. **Privacy on shared workstations.** Sessions time out on inactivity, and nothing clinical is left behind after sign-out.
+
+## 2. Layers and dependency rules
+
+```
+src/
+├── app/            Composition root: providers, router, guards, shell layout, session guard
+├── core/modules/   Module registry: contract, validation, auto-discovery
+├── features/       One folder per module (plugin); also auth screens
+│   ├── home/  schedule/  forms/  audits/
+│   └── auth/       Login, Access Pending, Access Error (not a module)
+├── components/
+│   ├── ui/         Presentational primitives (Button, Card, Dialog, EmptyState…)
+│   ├── feedback/   ErrorBoundary, fallbacks, loaders, offline banner
+│   └── brand/      BrandMark: the single logo slot
+├── context/        AuthContext (auth + authorization state machine)
+├── hooks/          Reusable hooks (idle timeout, online status, document title)
+├── services/       ALL external I/O: firebase/, auth/, firestore/, monitoring/
+├── config/         env (validated), permissions matrix, app constants
+├── utils/          Pure helpers (permissions, errors, cn)
+└── styles/         Design tokens (Tailwind @theme)
+```
+
+**Allowed dependency direction:** `app → features → (core, context, components, hooks, services, config, utils)`
+
+These rules are enforced by ESLint (`eslint.config.js`). They are not just conventions:
+
+| Rule | Why |
+|---|---|
+| `features/*` may **not** import another feature | Prevents hidden coupling, so deleting or changing one module cannot break another |
+| `features/*` may **not** import `firebase` | All data access goes through `services/`, so the backend can change without touching the UI |
+| `components/*` may **not** import `services` or `features` | Keeps UI primitives pure and reusable |
+
+## 3. Module registry (plugin architecture)
+
+Every module is a folder containing a `module.ts` file:
+
+```ts
+export default defineModule({
+  id: 'audits', label: 'Unit Audits', path: 'audits', order: 30,
+  icon: ClipboardCheck, description: '…',
+  requires: 'audits.view',
+  load: () => import('./AuditsModule'),
+});
+```
+
+- **Discovery:** `core/modules/discovered.ts` uses `import.meta.glob('/src/features/*/module.ts')`. Adding the folder registers the module. No list needs editing.
+- **Validation at startup:** duplicate ids or paths, malformed slugs and reserved paths throw immediately in dev and CI.
+- **Generated UI:** the sidebar, bottom nav, Home cards and route table are all derived from the registry.
+- **Code splitting:** each module is its own lazy chunk, so the initial load stays small (app chunk is about 13 KB gzipped).
+- **Sub-routes:** each module owns `/<path>/*`, so it can add internal pages without touching the router.
+
+## 4. Module isolation (`app/router/ModuleHost.tsx`)
+
+Each module renders inside a fixed safety envelope. Each layer handles one kind of failure:
+
+```
+Permission check  →  ErrorBoundary  →  Suspense(skeleton)  →  <Module />
+```
+
+| Failure | What the user sees |
+|---|---|
+| Runtime error inside a module | That module's card shows "ran into a problem", with **Try again** and a reference ID (e.g. `PH-…`). Navigation and other modules keep working. |
+| Chunk fails to download (network loss, or a new deploy) | "couldn't be loaded", with **Reload page** |
+| Missing permission (deep link) | "You don't have access", with **Back to Home** |
+| Slow network | A skeleton placeholder, never a blank screen |
+
+The boundary resets automatically on navigation. A root-level boundary in `main.tsx` is the last resort.
+
+## 5. Authentication and authorization
+
+`context/AuthContext.tsx` is an explicit state machine. Each state renders exactly one screen:
+
+```
+initializing ─┬─► signedOut                 → Login
+              └─► resolving ─┬─► authorized   → App shell
+                             ├─► unauthorized → Access Pending (signed in, no role)
+                             └─► error        → Retry screen (never a lock-out)
+```
+
+- **Sign-in:** Google popup, with automatic fallback to redirect if popups are blocked. `prompt=select_account` is always set, so the next nurse on a shared workstation never silently inherits the previous Google session.
+- **Roles:** `services/auth/roleService.ts` reads custom claims and/or a Firestore `users/{uid}` document, depending on `VITE_ROLE_SOURCE`. `normalizeRoles` accepts `role`, `roles[]` or `{ admin: true }` shapes. Unknown values are ignored, so a malformed claim can only *reduce* access.
+- **Capabilities, not roles:** UI code calls `can('audits.export')`. It never checks `role === 'admin'`. The role-to-capability matrix lives in one file: `config/permissions.ts`.
+- **Domain restriction:** `VITE_ALLOWED_EMAIL_DOMAINS` signs out non-institutional accounts with a clear message.
+- **Race safety:** role lookups use a request counter, so a stale result can never overwrite a newer user's state.
+
+> ⚠️ **Client-side checks control what is *shown*. They are not a security boundary.** Every permission must also be enforced in Firestore Security Rules.
+
+## 6. Inactivity auto-logout (`hooks/useIdleTimeout.ts`)
+
+- **Default:** 5 minutes, with a 60-second "Are you still there?" countdown. Both are configurable.
+- **Timestamp-based**, so it stays accurate even when browsers throttle timers in background tabs.
+- **Cross-tab:** last activity is shared through `localStorage`. Working in any tab keeps all tabs alive, and all tabs time out together.
+- **Stale-session check:** reopening the browser after the timeout signs out immediately instead of resuming the old session.
+- **Explicit confirmation:** once the warning shows, mouse movement does not extend the session. The user must press **Stay signed in**, which has keyboard focus so it is the safe default.
+- **On sign-out:** the query cache is cleared, so no clinical data survives into the next session.
+
+## 7. Data layer
+
+- **TanStack Query** manages server state: caching, retries with backoff, no retries on permission errors, and bounded memory (`gcTime` 5 min) for workstations left open through a 12-hour shift.
+- **`services/firestore/repository.ts`**: a typed repository factory. Writes are validated with Zod. On reads, malformed documents are skipped and logged instead of crashing a screen. Lists are always bounded by `limit`.
+- **Firestore cache is in-memory only.** We deliberately avoid persisting clinical data to disk on shared machines.
+
+## 8. Design system
+
+- **Tokens** live in `styles/index.css` (`@theme`): the AUBMC white and light-blue palette, semantic text and line colors, and high-contrast status colors. To re-brand, change this one block.
+- **Logo:** `components/brand/BrandMark.tsx` is the single logo slot (the logo is pending approval).
+- **Ergonomics:** 44 px minimum touch targets, always-visible focus rings, `prefers-reduced-motion` support, and a skip link.
+- **Responsive navigation:** full sidebar at `lg` and up (workstations), an icon rail at `md` (tablets), and a bottom tab bar on phones.
+
+## 9. Open decisions (pending discovery answers)
+
+| Area | Current default | Waiting on |
+|---|---|---|
+| Role matrix | Provisional draft in `config/permissions.ts` | Confirmation of B3/B4 |
+| Role storage | `claims-firestore` (supports both) | B1 |
+| SNV2 | `launch` mode (new tab) | C1–C4 (hosting/auth, whether framing is allowed) |
+| Forms engine | Not yet built | E1–E5 (form list, fields, sign-off rules) |
+| Audits | Not yet built | F1–F5 (items, scoring, thresholds, exports) |
+| Patient identifiers | None stored | D1 (PHI decision drives rules and retention) |
