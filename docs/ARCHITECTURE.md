@@ -109,6 +109,7 @@ The UI only *shows or hides*. The rules *enforce*:
 - Only an **active admin** (`"staff-access": "admin"`) can change another user's `access` and `status`. Every change is stamped with `updatedBy` and `updatedAt`.
 - Admins can adjust their **own** tab access, but can never remove their own admin level or deactivate themselves, so there's no lockout.
 - Future data collections use the `hasLevel(key, levels)` helper, e.g. `hasLevel('audits:infection-control', ['enter', 'full'])`.
+- **Owner accounts** (`owner: true`, set only in the console) are hidden from the Staff Access list for other admins and cannot be modified by anyone but the owner. The flag is in no rule's allowed-keys, so it can never be set or cleared through the app.
 - Nothing can be deleted (audit trail). Anything not explicitly allowed is denied.
 - `rules-tests/users.rules.test.ts` holds 34 executable scenarios, run against the Firestore emulator with `npm run test:rules`.
 

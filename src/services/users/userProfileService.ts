@@ -17,7 +17,7 @@ import {
   setDoc,
   updateDoc,
 } from 'firebase/firestore';
-import { firestore } from '@/services/firebase/client';
+import { firebaseAuth, firestore } from '@/services/firebase/client';
 import { COLLECTIONS } from '@/services/firestore/collections';
 import { logger } from '@/services/monitoring/logger';
 import { parseUserProfile } from './access';
@@ -39,10 +39,13 @@ export async function ensureUserProfile(user: User): Promise<void> {
 
   if (!snapshot.exists()) {
     try {
+      // On self sign-up the display name is set moments earlier via
+      // updateProfile; prefer the live currentUser so the first record has it.
+      const displayName = firebaseAuth().currentUser?.displayName ?? user.displayName;
       await setDoc(ref, {
         uid: user.uid,
         email: user.email,
-        displayName: user.displayName,
+        displayName,
         photoURL: user.photoURL,
         access: {},
         status: 'pending',

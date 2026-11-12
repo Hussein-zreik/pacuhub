@@ -16,7 +16,7 @@ function renderAs(level: 'view' | 'manage') {
   const auth: AuthContextValue = {
     state: { status: 'authorized', user: { uid: 'u1', email: 'n@aub.edu.lb', displayName: 'N', photoURL: null }, access: { schedule: level } },
     isSigningIn: false, signInError: null, lastSignOutReason: null,
-    signInWithPassword: vi.fn(), signInWithGoogle: vi.fn(), sendPasswordReset: vi.fn(), clearSignInError: vi.fn(),
+    signInWithPassword: vi.fn(), signUp: vi.fn(), signInWithGoogle: vi.fn(), sendPasswordReset: vi.fn(), clearSignInError: vi.fn(),
     signOut: vi.fn(), refreshAccess: vi.fn(),
   };
   render(

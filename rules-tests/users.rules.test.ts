@@ -210,6 +210,49 @@ describe('admin access management', () => {
   });
 });
 
+describe('owner ("master") account protection', () => {
+  beforeEach(async () => {
+    await seed('owner', { status: 'active', access: ADMIN, owner: true });
+    await seed('boss', { status: 'active', access: ADMIN });
+    await seed('nurse', { status: 'active', access: { schedule: 'view' } });
+  });
+
+  it('a different admin cannot change an owner (no demote)', async () => {
+    await assertFails(updateDoc(doc(as('boss'), USERS, 'owner'), adminUpdate('boss', { schedule: 'view' }, 'active')));
+  });
+
+  it('a different admin cannot deactivate an owner', async () => {
+    await assertFails(updateDoc(doc(as('boss'), USERS, 'owner'), adminUpdate('boss', ADMIN, 'disabled')));
+  });
+
+  it('the owner can still adjust their own tabs (keeping admin)', async () => {
+    await assertSucceeds(
+      updateDoc(doc(as('owner'), USERS, 'owner'), {
+        access: { ...ADMIN, schedule: 'manage' },
+        updatedAt: serverTimestamp(),
+        updatedBy: 'owner',
+      }),
+    );
+  });
+
+  it('nobody can add or change the owner flag through the app (console-only)', async () => {
+    // an admin trying to promote a normal user to owner
+    await assertFails(
+      setDoc(doc(as('boss'), USERS, 'nurse'), { access: ADMIN, status: 'active', owner: true, updatedAt: serverTimestamp(), updatedBy: 'boss' }),
+    );
+    // an admin trying to drop the owner flag (by rewriting the record)
+    await assertFails(
+      setDoc(doc(as('boss'), USERS, 'owner'), { access: ADMIN, status: 'active', owner: false, updatedAt: serverTimestamp(), updatedBy: 'boss' }),
+    );
+  });
+
+  it('the owner still cannot deactivate themselves', async () => {
+    await assertFails(
+      updateDoc(doc(as('owner'), USERS, 'owner'), { status: 'disabled', updatedAt: serverTimestamp(), updatedBy: 'owner' }),
+    );
+  });
+});
+
 describe('schedule settings (SNV2 staff request link)', () => {
   const SETTINGS = 'pacuhub_settings';
   const LINK = 'https://hussein-zreik.github.io/SNV2/request.html?f=AbCdEfGhIjKlMnOpQrSt12';

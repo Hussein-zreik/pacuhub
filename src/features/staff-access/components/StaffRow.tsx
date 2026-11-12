@@ -44,7 +44,8 @@ export function StaffRow({ person, isSelf, onAction }: { person: UserProfile; is
           <p className="flex items-center gap-2 font-semibold text-ink">
             <span className="truncate">{person.displayName ?? person.email}</span>
             {isSelf && <Badge tone="brand">You</Badge>}
-            {isAdmin(person.access) && person.status === 'active' && <Badge tone="warning">Admin</Badge>}
+            {person.owner && <Badge tone="warning">Owner</Badge>}
+            {!person.owner && isAdmin(person.access) && person.status === 'active' && <Badge tone="warning">Admin</Badge>}
           </p>
           <p className="truncate text-sm text-ink-muted">{person.email}</p>
           <div className="mt-1.5 flex flex-wrap items-center gap-1.5 xl:hidden">

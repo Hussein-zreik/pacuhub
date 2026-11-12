@@ -65,8 +65,12 @@ export function AccessPendingPage({ user, access }: { user: HubUser; access: 'pe
       }
     >
       {signedInAs}
-      <p>Your request has been sent to the PACU Nurse Manager for approval.</p>
+      <p>Your request is waiting for a PACU Hub admin to approve it in Staff Access.</p>
       <p>This page will open PACU Hub automatically as soon as access is granted — you can leave it open.</p>
+      <p className="rounded-lg bg-canvas p-3 text-xs">
+        Setting up PACU Hub for the first time? There is no admin yet, so the first admin is approved once in the Firebase console —
+        see <span className="font-semibold">docs/ACCESS_SETUP.md, Step 4</span>.
+      </p>
     </FullPageMessage>
   );
 }

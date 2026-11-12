@@ -30,12 +30,16 @@ export default function StaffAccessModule() {
   const update = useUpdateAccess();
 
   const staff = useMemo(() => staffQuery.data ?? [], [staffQuery.data]);
-  const counts = useMemo(() => countByStatus(staff), [staff]);
+  // Owner ("master") accounts are hidden from everyone except themselves.
+  const listed = useMemo(() => staff.filter((p) => !p.owner || p.uid === selfUid), [staff, selfUid]);
+  const counts = useMemo(() => countByStatus(listed), [listed]);
+  // Admin count uses the FULL list (incl. hidden owners) so the "second admin"
+  // warning is accurate even for an admin who can't see the owner.
   const adminCount = useMemo(() => staff.filter((p) => p.status === 'active' && isAdmin(p.access)).length, [staff]);
   const [filter, setFilter] = useState<StaffFilter | null>(null);
   const activeFilter: StaffFilter = filter ?? (counts.pending > 0 ? 'pending' : 'active');
   const [search, setSearch] = useState('');
-  const visible = useMemo(() => filterStaff(staff, activeFilter, search), [staff, activeFilter, search]);
+  const visible = useMemo(() => filterStaff(listed, activeFilter, search), [listed, activeFilter, search]);
   const [pending, setPending] = useState<Pending>(null);
 
   const close = () => {

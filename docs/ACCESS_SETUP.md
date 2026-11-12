@@ -52,6 +52,22 @@ The rules deliberately stop anyone from granting themselves access, so the very 
 
 From then on, manage everyone from **Staff Access** inside PACU Hub. Use the Console only to create accounts, or in an emergency.
 
+## Owner ("master") account — optional
+
+An **owner** account is a normal admin login with two extra properties:
+
+- It is **hidden from the Staff Access list** for every other admin.
+- **No other admin can change, demote or deactivate it.** Only you, from the Firebase console, can.
+
+It is still an ordinary email + password account enforced by the database — not a secret password in the code. To make your account an owner:
+
+1. Firebase console → **Firestore Database → Data → `pacuhub_users`** → your record.
+2. **+ Add field** → name **`owner`**, type **boolean**, value **true** → save.
+
+That's it. In Staff Access you'll see yourself with an **Owner** badge; other admins won't see your row at all.
+
+> One honest limit: "hidden" means hidden from the app's screens. The database still lets any admin's app download all records (that's how the staff list loads), so a technically skilled second admin could in theory see that the record exists via browser developer tools. They still can't change it. For a trusted colleague this is fine; if you ever need it fully invisible even at that level, tell me and I'll add stricter database queries.
+
 **Make a second admin straight away.** PACU Hub shows a warning until there are two. An admin can adjust their own tabs but can never remove their own admin access or deactivate themselves, so the unit can't lose its last admin by accident.
 
 ## Access: per person, per tab

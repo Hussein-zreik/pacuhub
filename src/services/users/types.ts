@@ -12,6 +12,12 @@ export interface UserProfile {
   /** Per-tab / per-area access levels. Empty = no access. */
   access: AccessMap;
   status: AccessStatus;
+  /**
+   * Owner ("master") account. Hidden from the Staff Access list for everyone
+   * except the owner, and protected from any other admin. Set once by hand in
+   * the Firebase console; it can never be changed through the app.
+   */
+  owner: boolean;
   createdAt: Date | null;
   lastSignInAt: Date | null;
   updatedAt: Date | null;
