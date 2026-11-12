@@ -11,7 +11,9 @@ import { createQueryClient } from './queryClient';
 export function AppProviders({ children }: { children: ReactNode }) {
   const [queryClient] = useState(createQueryClient);
   return (
-    <BrowserRouter>
+    // basename lets the same build work at "/" (Firebase Hosting) and at
+    // "/pacuhub/" (GitHub Pages).
+    <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, '') || '/'}>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <ModuleRegistryProvider modules={moduleRegistry}>

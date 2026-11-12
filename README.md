@@ -45,9 +45,13 @@ Shared settings live in [`.env`](.env) (committed; the Firebase web config is pu
 - **`VITE_IDLE_TIMEOUT_MINUTES`**: auto sign-out (default 5, with a 60-second warning)
 - **`VITE_SNV2_URL`**: the SNV2 manager app, opened from Schedule by people with "Manage schedule". The staff request link is set inside the app, because it must not be in this public repo.
 
-## Deploying (Firebase Hosting)
+## Deploying
 
-Automatic, via GitHub Actions: pull requests get a preview link, and merging to `main` publishes **https://pacuhub.web.app**. One-time setup: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+Automatic, via GitHub Actions, whenever `main` changes:
+- **GitHub Pages (now):** https://hussein-zreik.github.io/pacuhub/
+- **Firebase Hosting (later):** https://pacuhub.web.app. This switches on by itself once its deployment key is added.
+
+Setup, and how to move to Firebase later: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
 Manual:
 

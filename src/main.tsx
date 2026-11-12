@@ -11,7 +11,22 @@ import '@/styles/index.css';
 const root = document.getElementById('root');
 if (!root) throw new Error('Root element #root not found');
 
-createRoot(root).render(
+/**
+ * Anti-clickjacking: refuse to run inside another site's frame. Firebase
+ * Hosting also blocks this with a header; GitHub Pages can't, so this guard
+ * covers both. The real app never needs to be framed.
+ */
+const framed = (() => {
+  try {
+    return window.top !== window.self;
+  } catch {
+    return true; // cross-origin parent: definitely framed
+  }
+})();
+
+if (framed) {
+  root.textContent = 'For your security, PACU Hub cannot be opened inside another page.';
+} else createRoot(root).render(
   <StrictMode>
     {/* Last-resort boundary. Module-level boundaries catch almost everything first. */}
     <ErrorBoundary

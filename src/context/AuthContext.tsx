@@ -131,9 +131,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   useEffect(() => {
-    authService.consumeRedirectResult().catch((error: unknown) => {
-      setSignInError(toFriendlyAuthError(error).message);
-    });
+    // Only Google sign-in can use a redirect; skipping this otherwise avoids
+    // loading Firebase's auth frame at all for password-only sign-in.
+    if (env.signInMethods.includes('google')) {
+      authService.consumeRedirectResult().catch((error: unknown) => {
+        setSignInError(toFriendlyAuthError(error).message);
+      });
+    }
     const unsubscribe = authService.subscribe((user, raw) => void evaluate(user, raw));
     return () => {
       unsubscribe();
