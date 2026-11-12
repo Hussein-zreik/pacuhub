@@ -34,8 +34,8 @@ const envSchema = z.object({
   VITE_IDLE_TIMEOUT_MINUTES: z.coerce.number().min(1).max(60).default(5),
   VITE_IDLE_WARNING_SECONDS: z.coerce.number().int().min(0).max(300).default(60),
 
-  VITE_SNV2_URL: z.url({ protocol: /^https?$/ }).optional(),
-  VITE_SNV2_MODE: z.enum(['embed', 'launch']).default('launch'),
+  /** SNV2 manager app (opened from the Schedule tab by "Manage schedule"). */
+  VITE_SNV2_URL: z.url({ protocol: /^https$/ }).optional(),
 });
 
 export interface FirebaseWebConfig {
@@ -57,7 +57,8 @@ export interface AppEnv {
   signInMethods: SignInMethod[];
   idleTimeoutMs: number;
   idleWarningMs: number;
-  snv2: { url: string | null; mode: 'embed' | 'launch' };
+  /** SNV2 manager app URL, or null if not configured. */
+  snv2Url: string | null;
   /** Blocking configuration problems — the app shows a setup screen. */
   issues: string[];
   /** Non-blocking problems — an invalid optional value fell back to its default. */
@@ -115,7 +116,7 @@ export function parseEnv(raw: Record<string, unknown>): AppEnv {
     signInMethods: [...new Set(config.VITE_SIGN_IN_METHODS)],
     idleTimeoutMs,
     idleWarningMs,
-    snv2: { url: config.VITE_SNV2_URL ?? null, mode: config.VITE_SNV2_MODE },
+    snv2Url: config.VITE_SNV2_URL ?? null,
     issues,
     warnings,
   };

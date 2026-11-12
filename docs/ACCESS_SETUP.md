@@ -60,7 +60,7 @@ Each person's access is chosen **tab by tab**. For **Unit Audits** it's chosen *
 
 | Tab | Levels (low → high) | Stored key |
 |---|---|---|
-| Schedule | View schedule | `schedule` |
+| Schedule | Request days off → Manage schedule (open SNV2, set the staff request link) | `schedule` |
 | PACU Forms | Fill forms → Fill & review | `forms` |
 | Unit Audits: Brief Op Notes | View results → Enter & view → Enter, view & export | `audits:brief-op-notes` |
 | Unit Audits: Staff Education | (same) | `audits:staff-education` |
@@ -75,8 +75,8 @@ Each person's access is chosen **tab by tab**. For **Unit Audits** it's chosen *
 
 | Template | Gives |
 |---|---|
-| Staff Nurse | Schedule, Fill forms |
-| Charge Nurse | Schedule, Fill & review forms |
+| Staff Nurse | Schedule (request days off), Fill forms |
+| Charge Nurse | Schedule (request days off), Fill & review forms |
 | Educator / Auditor | Schedule, Fill forms, and *Enter, view & export* on **every** audit type |
 | Nurse Manager / Admin | Everything at the highest level, including Staff Access |
 

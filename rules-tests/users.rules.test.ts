@@ -210,6 +210,56 @@ describe('admin access management', () => {
   });
 });
 
+describe('schedule settings (SNV2 staff request link)', () => {
+  const SETTINGS = 'pacuhub_settings';
+  const LINK = 'https://hussein-zreik.github.io/SNV2/request.html?f=AbCdEfGhIjKlMnOpQrSt12';
+  const write = (uid: string, requestLink: unknown) =>
+    setDoc(doc(as(uid), SETTINGS, 'schedule'), { requestLink, updatedAt: serverTimestamp(), updatedBy: uid });
+
+  beforeEach(async () => {
+    await seed('manager', { status: 'active', access: { schedule: 'manage' } });
+    await seed('nurse', { status: 'active', access: { schedule: 'view' } });
+    await seed('auditor', { status: 'active', access: { 'audits:infection-control': 'enter' } });
+  });
+
+  it('a schedule manager can set the link', async () => {
+    await assertSucceeds(write('manager', LINK));
+  });
+
+  it('a schedule manager can clear the link', async () => {
+    await assertSucceeds(write('manager', null));
+  });
+
+  it('staff with Schedule access can read it but not change it', async () => {
+    await write('manager', LINK);
+    await assertSucceeds(getDoc(doc(as('nurse'), SETTINGS, 'schedule')));
+    await assertFails(write('nurse', LINK));
+  });
+
+  it('people without Schedule access cannot even read it', async () => {
+    await assertFails(getDoc(doc(as('auditor'), SETTINGS, 'schedule')));
+    await assertFails(getDoc(doc(anonymous(), SETTINGS, 'schedule')));
+  });
+
+  it('only genuine SNV2 request links are accepted (no look-alike or phishing links)', async () => {
+    await assertFails(write('manager', 'https://evil.example/SNV2/request.html?f=AbCdEfGhIjKlMnOpQrSt12'));
+    await assertFails(write('manager', 'https://hussein-zreik.github.io/SNV2/request.html?f=short'));
+    await assertFails(write('manager', LINK + '&next=https://evil.example'));
+    await assertFails(write('manager', 42));
+  });
+
+  it('a deactivated manager cannot change it', async () => {
+    await seed('former', { status: 'disabled', access: { schedule: 'manage' } });
+    await assertFails(write('former', LINK));
+  });
+
+  it('extra fields are rejected', async () => {
+    await assertFails(
+      setDoc(doc(as('manager'), SETTINGS, 'schedule'), { requestLink: LINK, updatedAt: serverTimestamp(), updatedBy: 'manager', x: 1 }),
+    );
+  });
+});
+
 describe('everything else', () => {
   it("grants nothing on collections outside PACU Hub's (e.g. `users`)", async () => {
     await seed('boss', { status: 'active', access: ADMIN });

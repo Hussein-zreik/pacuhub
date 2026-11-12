@@ -15,12 +15,12 @@ describe('parseEnv', () => {
     expect(env.issues).toHaveLength(1);
   });
 
-  it('applies safe defaults (5 min idle, 60 s warning, launch mode)', () => {
+  it('applies safe defaults (5 min idle, 60 s warning, password sign-in)', () => {
     const env = parseEnv(firebase);
     expect(env.issues).toEqual([]);
     expect(env.idleTimeoutMs).toBe(5 * 60_000);
     expect(env.idleWarningMs).toBe(60_000);
-    expect(env.snv2).toEqual({ url: null, mode: 'launch' });
+    expect(env.snv2Url).toBeNull();
     expect(env.signInMethods).toEqual(['password']);
   });
 
@@ -31,16 +31,17 @@ describe('parseEnv', () => {
   });
 
   it('treats blank .env values as unset', () => {
-    const env = parseEnv({ ...firebase, VITE_SNV2_URL: '', VITE_SNV2_MODE: '', VITE_IDLE_TIMEOUT_MINUTES: '' });
-    expect(env.snv2).toEqual({ url: null, mode: 'launch' });
+    const env = parseEnv({ ...firebase, VITE_SNV2_URL: '', VITE_IDLE_TIMEOUT_MINUTES: '' });
+    expect(env.snv2Url).toBeNull();
     expect(env.idleTimeoutMs).toBe(5 * 60_000);
     expect(env.warnings).toEqual([]);
   });
 
   it('falls back per-field on invalid optional values without losing the rest', () => {
-    const env = parseEnv({ ...firebase, VITE_SNV2_URL: 'not a url', VITE_SNV2_MODE: 'embed' });
+    const env = parseEnv({ ...firebase, VITE_SNV2_URL: 'http://insecure.example', VITE_IDLE_WARNING_SECONDS: '30' });
     expect(env.firebase).not.toBeNull();
-    expect(env.snv2).toEqual({ url: null, mode: 'embed' });
+    expect(env.snv2Url).toBeNull(); // http rejected: https only
+    expect(env.idleWarningMs).toBe(30_000);
     expect(env.warnings).toHaveLength(1);
   });
 

@@ -138,7 +138,7 @@ describe('Staff Access — per-person, per-tab access', () => {
     const dialog = await screen.findByRole('dialog');
     expect(pick(dialog, /access to staff access/i, /no access/i)).toBeDisabled();
     expect(within(dialog).getByText(/can't remove your own admin access/i)).toBeInTheDocument();
-    await user.click(pick(dialog, /access to schedule/i, /view schedule/i));
+    await user.click(pick(dialog, /access to schedule/i, /request days off/i));
     await user.click(within(dialog).getByRole('button', { name: /save changes/i }));
     expect(service.updateUserAccess).toHaveBeenCalledWith('admin-1', { access: { ...ADMIN, schedule: 'view' }, status: 'active' }, 'admin-1');
   });

@@ -8,4 +8,5 @@
  */
 export const COLLECTIONS = {
   users: 'pacuhub_users',
+  settings: 'pacuhub_settings',
 } as const;

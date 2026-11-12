@@ -5,7 +5,7 @@ The digital workspace for the **AUBMC Post-Anesthesia Care Unit**: one place for
 | Module | Status |
 |---|---|
 | Home | ✅ Live |
-| Schedule (SNV2) | 🛠 Shell in place; design for nurses vs. manager pending |
+| Schedule (SNV2) | ✅ Live: "Request a day off" (SNV2 staff link), manager tools; published roster coming soon |
 | PACU Forms | 🛠 Shell in place; forms pending definitions |
 | Unit Audits | 🛠 Shell in place; audit tools pending definitions |
 | Staff Access (admin) | ✅ Live: approve requests, set access per tab and per audit type, deactivate |
@@ -43,9 +43,13 @@ Shared settings live in [`.env`](.env) (committed; the Firebase web config is pu
 
 - **`VITE_ALLOWED_EMAIL_DOMAINS`**: restricts sign-in to institutional email addresses
 - **`VITE_IDLE_TIMEOUT_MINUTES`**: auto sign-out (default 5, with a 60-second warning)
-- **`VITE_SNV2_URL`** / **`VITE_SNV2_MODE`**: schedule integration (`launch` or `embed`)
+- **`VITE_SNV2_URL`**: the SNV2 manager app, opened from Schedule by people with "Manage schedule". The staff request link is set inside the app, because it must not be in this public repo.
 
 ## Deploying (Firebase Hosting)
+
+Automatic, via GitHub Actions: pull requests get a preview link, and merging to `main` publishes **https://pacuhub.web.app**. One-time setup: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+
+Manual:
 
 ```bash
 npm run build
@@ -62,3 +66,4 @@ PACU Hub has its own Firebase project, so deploying its rules can't affect any o
 - [Architecture](docs/ARCHITECTURE.md): layers, dependency rules, auth state machine and resilience design
 - [Adding a module](docs/ADDING_A_MODULE.md): how to add a new tab without touching core code
 - [Staff access setup](docs/ACCESS_SETUP.md): security rules, first admin, per-tab access and record format
+- [Deployment](docs/DEPLOYMENT.md): publishing to pacuhub.web.app

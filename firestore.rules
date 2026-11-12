@@ -143,5 +143,23 @@ service cloud.firestore {
 
       allow delete: if false;
     }
+
+    // ── Schedule settings ────────────────────────────────────────────────────
+    // The SNV2 staff request link. Kept here (not in the public code) because
+    // its form id opens the request form and its staff name list.
+    match /pacuhub_settings/schedule {
+      allow read: if hasLevel('schedule', ['view', 'manage']);
+
+      allow create, update: if hasLevel('schedule', ['manage'])
+        && request.resource.data.keys().hasOnly(['requestLink', 'updatedAt', 'updatedBy'])
+        && (request.resource.data.requestLink == null
+            || (request.resource.data.requestLink is string
+                && request.resource.data.requestLink.matches(
+                     '^https://hussein-zreik[.]github[.]io/SNV2/request[.]html[?]f=[A-Za-z0-9]{20,40}$')))
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.updatedAt == request.time;
+
+      allow delete: if false;
+    }
   }
 }

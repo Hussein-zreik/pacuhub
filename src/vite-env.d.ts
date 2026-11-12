@@ -12,7 +12,6 @@ interface ImportMetaEnv {
   readonly VITE_IDLE_TIMEOUT_MINUTES?: string;
   readonly VITE_IDLE_WARNING_SECONDS?: string;
   readonly VITE_SNV2_URL?: string;
-  readonly VITE_SNV2_MODE?: string;
 }
 
 interface ImportMeta {
