@@ -40,6 +40,8 @@ export const userProfileSchema = z.object({
   photoURL: nullableString,
   access: z.unknown().optional().transform((raw) => sanitizeAccess(raw)),
   status: z.enum(ACCESS_STATUSES).catch('pending'),
+  // Only the exact boolean true marks an owner; anything else is not an owner.
+  owner: z.unknown().optional().transform((value) => value === true),
   createdAt: timestamp,
   lastSignInAt: timestamp,
   updatedAt: timestamp,

@@ -14,7 +14,7 @@ vi.mock('@/services/users/userProfileService', () => service);
 const ADMIN = { 'staff-access': 'admin' };
 const profile = (over: Partial<UserProfile>): UserProfile => ({
   uid: 'x', email: 'x@aub.edu.lb', displayName: 'X', photoURL: null, access: {}, status: 'pending',
-  createdAt: new Date('2026-11-10'), lastSignInAt: null, updatedAt: null, updatedBy: null, ...over,
+  owner: false, createdAt: new Date('2026-11-10'), lastSignInAt: null, updatedAt: null, updatedBy: null, ...over,
 });
 const me = { uid: 'admin-1', email: 'manager@aub.edu.lb', displayName: 'Maya Khoury', photoURL: null };
 
@@ -152,6 +152,40 @@ describe('Staff Access — per-person, per-tab access', () => {
     const dialog = await screen.findByRole('dialog', { name: /deactivate access/i });
     await user.click(within(dialog).getByRole('button', { name: /^deactivate$/i }));
     expect(service.updateUserAccess).toHaveBeenCalledWith('a1', { access: { schedule: 'view' }, status: 'disabled' }, 'admin-1');
+  });
+
+  it('hides an owner account from a different admin, but still counts it (no false warning)', async () => {
+    renderModule([
+      profile({ uid: 'owner-1', displayName: 'Hidden Owner', status: 'active', access: ADMIN, owner: true }),
+      profile({ uid: 'admin-1', displayName: 'Maya Khoury', status: 'active', access: ADMIN }),
+      profile({ uid: 'p1', displayName: 'Lina Saad' }),
+    ]);
+    await screen.findByText('Lina Saad');
+    expect(screen.queryByText('Hidden Owner')).not.toBeInTheDocument(); // hidden from this admin
+    expect(screen.queryByText(/add a second admin/i)).not.toBeInTheDocument(); // owner still counts
+  });
+
+  it('shows the owner their own account, with an Owner badge', async () => {
+    const auth: AuthContextValue = {
+      state: { status: 'authorized', user: { ...me, uid: 'owner-1' }, access: ADMIN },
+      isSigningIn: false, signInError: null, lastSignOutReason: null,
+      signInWithPassword: vi.fn(), signInWithGoogle: vi.fn(), sendPasswordReset: vi.fn(), clearSignInError: vi.fn(),
+      signOut: vi.fn(), refreshAccess: vi.fn(),
+    };
+    service.listUserProfiles.mockResolvedValue([profile({ uid: 'owner-1', displayName: 'Maya Khoury', status: 'active', access: ADMIN, owner: true })]);
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={client}>
+        <AuthContext.Provider value={auth}>
+          <ModuleRegistryProvider modules={moduleRegistry}>
+            <StaffAccessModule />
+          </ModuleRegistryProvider>
+        </AuthContext.Provider>
+      </QueryClientProvider>,
+    );
+    await userEvent.setup().click(await screen.findByRole('tab', { name: /active/i }));
+    expect(screen.getByText('Maya Khoury')).toBeInTheDocument();
+    expect(screen.getByText('Owner')).toBeInTheDocument();
   });
 
   it('warns while there is only one admin, and stops warning at two', async () => {

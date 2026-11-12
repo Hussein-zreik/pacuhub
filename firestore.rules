@@ -95,6 +95,9 @@ service cloud.firestore {
       allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
 
       // First sign-in: create own record as a pending request with no access.
+      // Note: `owner` is NOT an allowed key here or in any update rule below,
+      // so an owner account can only be marked by hand in the Firebase console,
+      // never created or changed through the app.
       allow create: if signedIn()
         && request.auth.uid == uid
         && hasAccountEmail()
@@ -119,8 +122,10 @@ service cloud.firestore {
         && request.resource.data.lastSignInAt == request.time;
 
       // Admin: grant / change / revoke ANOTHER user's access.
+      // An owner ("master") account can never be changed by anyone else.
       allow update: if isAdmin()
         && request.auth.uid != uid
+        && resource.data.get('owner', false) == false
         && request.resource.data.diff(resource.data).affectedKeys()
              .hasOnly(['access', 'status', 'updatedAt', 'updatedBy'])
         && validAccess(request.resource.data.access)
