@@ -22,6 +22,14 @@ describe('parseEnv', () => {
     expect(env.idleWarningMs).toBe(60_000);
     expect(env.snv2Url).toBeNull();
     expect(env.signInMethods).toEqual(['password']);
+    expect(env.allowSignup).toBe(false);
+  });
+
+  it('reads VITE_ALLOW_SIGNUP as a boolean (default off)', () => {
+    expect(parseEnv({ ...firebase, VITE_ALLOW_SIGNUP: 'true' }).allowSignup).toBe(true);
+    expect(parseEnv({ ...firebase, VITE_ALLOW_SIGNUP: 'false' }).allowSignup).toBe(false);
+    expect(parseEnv({ ...firebase, VITE_ALLOW_SIGNUP: 'nonsense' }).allowSignup).toBe(false);
+    expect(parseEnv(firebase).allowSignup).toBe(false);
   });
 
   it('parses sign-in methods and falls back to password-only on bad values', () => {

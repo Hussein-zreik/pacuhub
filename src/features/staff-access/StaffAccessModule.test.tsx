@@ -23,7 +23,7 @@ function renderModule(staff: UserProfile[]) {
   const auth: AuthContextValue = {
     state: { status: 'authorized', user: me, access: ADMIN },
     isSigningIn: false, signInError: null, lastSignOutReason: null,
-    signInWithPassword: vi.fn(), signInWithGoogle: vi.fn(), sendPasswordReset: vi.fn(), clearSignInError: vi.fn(),
+    signInWithPassword: vi.fn(), signUp: vi.fn(), signInWithGoogle: vi.fn(), sendPasswordReset: vi.fn(), clearSignInError: vi.fn(),
     signOut: vi.fn(), refreshAccess: vi.fn(),
   };
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -169,7 +169,7 @@ describe('Staff Access — per-person, per-tab access', () => {
     const auth: AuthContextValue = {
       state: { status: 'authorized', user: { ...me, uid: 'owner-1' }, access: ADMIN },
       isSigningIn: false, signInError: null, lastSignOutReason: null,
-      signInWithPassword: vi.fn(), signInWithGoogle: vi.fn(), sendPasswordReset: vi.fn(), clearSignInError: vi.fn(),
+      signInWithPassword: vi.fn(), signUp: vi.fn(), signInWithGoogle: vi.fn(), sendPasswordReset: vi.fn(), clearSignInError: vi.fn(),
       signOut: vi.fn(), refreshAccess: vi.fn(),
     };
     service.listUserProfiles.mockResolvedValue([profile({ uid: 'owner-1', displayName: 'Maya Khoury', status: 'active', access: ADMIN, owner: true })]);

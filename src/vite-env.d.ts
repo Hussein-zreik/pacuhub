@@ -9,6 +9,7 @@ interface ImportMetaEnv {
   readonly VITE_FIREBASE_APP_ID?: string;
   readonly VITE_ALLOWED_EMAIL_DOMAINS?: string;
   readonly VITE_SIGN_IN_METHODS?: string;
+  readonly VITE_ALLOW_SIGNUP?: string;
   readonly VITE_IDLE_TIMEOUT_MINUTES?: string;
   readonly VITE_IDLE_WARNING_SECONDS?: string;
   readonly VITE_SNV2_URL?: string;

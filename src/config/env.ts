@@ -30,6 +30,8 @@ const envSchema = z.object({
   VITE_ALLOWED_EMAIL_DOMAINS: csvList,
   /** Which sign-in options the login screen offers. */
   VITE_SIGN_IN_METHODS: csvList.pipe(z.array(z.enum(['password', 'google'])).min(1)).catch(['password']),
+  /** Show a "Create account" option on the login screen (self-service sign-up). */
+  VITE_ALLOW_SIGNUP: z.stringbool().catch(false),
 
   VITE_IDLE_TIMEOUT_MINUTES: z.coerce.number().min(1).max(60).default(5),
   VITE_IDLE_WARNING_SECONDS: z.coerce.number().int().min(0).max(300).default(60),
@@ -55,6 +57,8 @@ export interface AppEnv {
   allowedEmailDomains: string[];
   /** Sign-in options on the login screen. Default: email + password only. */
   signInMethods: SignInMethod[];
+  /** Whether nurses can create their own account (then await admin approval). */
+  allowSignup: boolean;
   idleTimeoutMs: number;
   idleWarningMs: number;
   /** SNV2 manager app URL, or null if not configured. */
@@ -114,6 +118,7 @@ export function parseEnv(raw: Record<string, unknown>): AppEnv {
     firebase,
     allowedEmailDomains: config.VITE_ALLOWED_EMAIL_DOMAINS,
     signInMethods: [...new Set(config.VITE_SIGN_IN_METHODS)],
+    allowSignup: config.VITE_ALLOW_SIGNUP,
     idleTimeoutMs,
     idleWarningMs,
     snv2Url: config.VITE_SNV2_URL ?? null,

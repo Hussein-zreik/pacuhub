@@ -42,8 +42,10 @@ export interface AuthContextValue {
   signInError: string | null;
   /** Why the last session ended (shown as a notice on the login screen). */
   lastSignOutReason: SignOutReason | null;
-  /** Email + password (accounts created by the Nurse Manager). */
+  /** Email + password sign-in. */
   signInWithPassword: (email: string, password: string) => Promise<void>;
+  /** Self-service sign-up (when enabled). Creates a pending access request. */
+  signUp: (email: string, password: string, displayName: string) => Promise<void>;
   /** Google — only offered when enabled in VITE_SIGN_IN_METHODS. */
   signInWithGoogle: () => Promise<void>;
   /** Resolves with an error message, or `null` when the reset email was requested. */
@@ -169,6 +171,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signInWithGoogle = useCallback(() => runSignIn(() => authService.signInWithGoogle()), [runSignIn]);
 
+  const signUp = useCallback(
+    (email: string, password: string, displayName: string) =>
+      runSignIn(() => authService.signUpWithPassword(email, password, displayName)),
+    [runSignIn],
+  );
+
   const sendPasswordReset = useCallback(async (email: string): Promise<string | null> => {
     try {
       await authService.sendPasswordReset(email);
@@ -213,13 +221,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signInError,
       lastSignOutReason,
       signInWithPassword,
+      signUp,
       signInWithGoogle,
       sendPasswordReset,
       clearSignInError,
       signOut,
       refreshAccess,
     }),
-    [state, isSigningIn, signInError, lastSignOutReason, signInWithPassword, signInWithGoogle, sendPasswordReset, clearSignInError, signOut, refreshAccess],
+    [state, isSigningIn, signInError, lastSignOutReason, signInWithPassword, signUp, signInWithGoogle, sendPasswordReset, clearSignInError, signOut, refreshAccess],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

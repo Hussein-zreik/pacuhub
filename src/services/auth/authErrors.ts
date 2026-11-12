@@ -12,6 +12,8 @@ const MESSAGES: Record<string, string | null> = {
   // Deliberately the same message for every credential failure, so the
   // screen never reveals whether an email address has an account.
   'auth/invalid-credential': 'Email or password is incorrect.',
+  'auth/email-already-in-use': 'An account with this email already exists. Try signing in instead.',
+  'auth/weak-password': 'Choose a longer password (at least 8 characters).',
   'auth/invalid-login-credentials': 'Email or password is incorrect.',
   'auth/wrong-password': 'Email or password is incorrect.',
   'auth/user-not-found': 'Email or password is incorrect.',

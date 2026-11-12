@@ -3,11 +3,14 @@
  * Components use `useAuth()`; they never import from 'firebase/auth'.
  */
 import {
+  createUserWithEmailAndPassword,
   GoogleAuthProvider,
   getRedirectResult,
   onAuthStateChanged,
+  sendEmailVerification,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
+  updateProfile,
   signInWithPopup,
   signInWithRedirect,
   signOut as firebaseSignOut,
@@ -29,9 +32,26 @@ export const toHubUser = (user: User): HubUser => ({
 });
 
 export const authService = {
-  /** Email + password — accounts the Nurse Manager creates for each person. */
+  /** Email + password — an account created in Firebase or via self sign-up. */
   async signInWithPassword(email: string, password: string): Promise<void> {
     await signInWithEmailAndPassword(firebaseAuth(), email.trim(), password);
+  },
+
+  /**
+   * Self-service sign-up. Creates the Firebase account and signs in, which the
+   * auth listener turns into a PENDING access request — no access until an
+   * admin approves. A verification email is sent best-effort (so password
+   * reset works later); it never blocks the request.
+   */
+  async signUpWithPassword(email: string, password: string, displayName: string): Promise<void> {
+    const { user } = await createUserWithEmailAndPassword(firebaseAuth(), email.trim(), password);
+    const name = displayName.trim();
+    if (name) await updateProfile(user, { displayName: name });
+    try {
+      await sendEmailVerification(user);
+    } catch {
+      /* non-critical: approval is the real gate */
+    }
   },
 
   /** Sends Firebase's password-reset email. */

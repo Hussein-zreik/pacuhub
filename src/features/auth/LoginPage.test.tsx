@@ -10,7 +10,7 @@ function renderLogin(overrides: Partial<AuthContextValue> = {}) {
     isSigningIn: false,
     signInError: null,
     lastSignOutReason: null,
-    signInWithPassword: vi.fn().mockResolvedValue(undefined),
+    signInWithPassword: vi.fn().mockResolvedValue(undefined), signUp: vi.fn().mockResolvedValue(undefined),
     signInWithGoogle: vi.fn(),
     sendPasswordReset: vi.fn().mockResolvedValue(null),
     clearSignInError: vi.fn(),
@@ -77,5 +77,35 @@ describe('LoginPage (email + password)', () => {
     await user.click(screen.getByRole('button', { name: /send reset link/i }));
     expect(auth.sendPasswordReset).toHaveBeenCalledWith('nurse@aub.edu.lb');
     expect(await screen.findByText(/check your email/i)).toBeInTheDocument();
+  });
+});
+
+describe('LoginPage — self-service sign-up', () => {
+  it('opens the sign-up form and creates a pending account', async () => {
+    const user = userEvent.setup();
+    const auth = renderLogin();
+    await user.click(screen.getByRole('button', { name: /create an account/i }));
+    expect(screen.getByRole('heading', { name: /create your account/i })).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText('Full name'), 'Lina Saad');
+    await user.type(screen.getByLabelText('Email'), 'lina@aub.edu.lb');
+    await user.type(screen.getByLabelText('Password', { exact: true }), 'S3cret-pass');
+    await user.click(screen.getByRole('button', { name: /^create account$/i }));
+    expect(auth.signUp).toHaveBeenCalledWith('lina@aub.edu.lb', 'S3cret-pass', 'Lina Saad');
+  });
+
+  it('validates name, email and password length before creating', async () => {
+    const user = userEvent.setup();
+    const auth = renderLogin();
+    await user.click(screen.getByRole('button', { name: /create an account/i }));
+    await user.click(screen.getByRole('button', { name: /^create account$/i }));
+    expect(screen.getByText(/enter your full name/i)).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText('Full name'), 'Lina Saad');
+    await user.type(screen.getByLabelText('Email'), 'lina@aub.edu.lb');
+    await user.type(screen.getByLabelText('Password', { exact: true }), 'short');
+    await user.click(screen.getByRole('button', { name: /^create account$/i }));
+    expect(screen.getByText(/choose a password of at least 8 characters/i)).toBeInTheDocument();
+    expect(auth.signUp).not.toHaveBeenCalled();
   });
 });

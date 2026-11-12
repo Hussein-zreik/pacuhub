@@ -5,7 +5,7 @@
  * (PACU Hub's own Firebase project). Google sign-in can also be offered via
  * VITE_SIGN_IN_METHODS, but is off by default.
  */
-import { ArrowLeft, CalendarDays, ClipboardCheck, ClipboardList, Eye, EyeOff, MailCheck, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, CalendarDays, ClipboardCheck, ClipboardList, Eye, EyeOff, MailCheck, ShieldCheck, UserPlus } from 'lucide-react';
 import { useId, useState, type FormEvent } from 'react';
 import { BrandMark } from '@/components/brand/BrandMark';
 import { Alert, Button, Card, Input } from '@/components/ui';
@@ -35,7 +35,7 @@ function Field({ label, children, htmlFor }: { label: string; htmlFor: string; c
   );
 }
 
-function SignInForm({ email, setEmail, onForgot }: { email: string; setEmail: (v: string) => void; onForgot: () => void }) {
+function SignInForm({ email, setEmail, onForgot, onSignUp }: { email: string; setEmail: (v: string) => void; onForgot: () => void; onSignUp: () => void }) {
   const { signInWithPassword, signInWithGoogle, isSigningIn, signInError, clearSignInError, lastSignOutReason } = useAuth();
   const online = useOnlineStatus();
   const ids = { email: useId(), password: useId() };
@@ -133,6 +133,15 @@ function SignInForm({ email, setEmail, onForgot }: { email: string; setEmail: (v
         </form>
       )}
 
+      {passwordEnabled && env.allowSignup && (
+        <p className="mt-6 text-center text-sm text-ink-muted">
+          New here?{' '}
+          <button type="button" onClick={onSignUp} className="font-semibold text-brand-700 hover:underline">
+            Create an account
+          </button>
+        </p>
+      )}
+
       {googleEnabled && (
         <>
           {passwordEnabled && (
@@ -224,9 +233,106 @@ function ResetForm({ email, setEmail, onBack }: { email: string; setEmail: (v: s
   );
 }
 
+function SignUpForm({ email, setEmail, onBack }: { email: string; setEmail: (v: string) => void; onBack: () => void }) {
+  const { signUp, isSigningIn, signInError, clearSignInError } = useAuth();
+  const online = useOnlineStatus();
+  const ids = { name: useId(), email: useId(), password: useId() };
+  const [name, setName] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [localError, setLocalError] = useState<string | null>(null);
+
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    clearSignInError();
+    if (name.trim().length < 2) return setLocalError('Enter your full name.');
+    if (!EMAIL_PATTERN.test(email.trim())) return setLocalError('Enter a valid email address.');
+    if (password.length < 8) return setLocalError('Choose a password of at least 8 characters.');
+    void signUp(email, password, name);
+  };
+
+  const error = localError ?? signInError;
+
+  return (
+    <>
+      <button type="button" onClick={onBack} className="mb-4 inline-flex items-center gap-1 text-sm font-semibold text-brand-700 hover:underline">
+        <ArrowLeft className="size-4" /> Back to sign in
+      </button>
+      <h2 className="text-2xl font-bold tracking-tight text-ink">Create your account</h2>
+      <p className="mt-1.5 text-sm text-ink-muted">
+        After you create it, a PACU Hub admin approves your access before you can use the app.
+      </p>
+
+      <form className="mt-6 space-y-4" onSubmit={submit} noValidate>
+        <Field label="Full name" htmlFor={ids.name}>
+          <Input
+            id={ids.name}
+            type="text"
+            autoComplete="name"
+            value={name}
+            onChange={(e) => {
+              setName(e.target.value);
+              setLocalError(null);
+            }}
+            disabled={isSigningIn}
+          />
+        </Field>
+        <Field label="Email" htmlFor={ids.email}>
+          <Input
+            id={ids.email}
+            type="email"
+            inputMode="email"
+            autoComplete="username"
+            autoCapitalize="none"
+            spellCheck={false}
+            value={email}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              setLocalError(null);
+              if (signInError) clearSignInError();
+            }}
+            disabled={isSigningIn}
+          />
+        </Field>
+        <Field label="Password" htmlFor={ids.password}>
+          <div className="relative">
+            <Input
+              id={ids.password}
+              type={showPassword ? 'text' : 'password'}
+              autoComplete="new-password"
+              value={password}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                setLocalError(null);
+              }}
+              disabled={isSigningIn}
+              className="pr-12"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((v) => !v)}
+              className="absolute inset-y-0 right-0 flex w-11 items-center justify-center rounded-r-lg text-ink-subtle hover:text-ink"
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+              aria-pressed={showPassword}
+            >
+              {showPassword ? <EyeOff className="size-5" /> : <Eye className="size-5" />}
+            </button>
+          </div>
+          <p className="mt-1 text-xs text-ink-subtle">At least 8 characters.</p>
+        </Field>
+        {error && <Alert tone="danger">{error}</Alert>}
+        {!online && <Alert tone="warning">You are offline. Connect to the network to create your account.</Alert>}
+        <Button type="submit" size="lg" fullWidth loading={isSigningIn} disabled={!online}>
+          <UserPlus /> Create account
+        </Button>
+      </form>
+    </>
+  );
+}
+
 export function LoginPage() {
   useDocumentTitle('Sign in');
-  const [view, setView] = useState<'signin' | 'reset'>('signin');
+  const [view, setView] = useState<'signin' | 'reset' | 'signup'>('signin');
   // Shared between both views so the email isn't retyped.
   const [email, setEmail] = useState('');
 
@@ -260,11 +366,11 @@ export function LoginPage() {
         <div className="w-full max-w-sm">
           <BrandMark className="mb-10" />
           <Card className="p-7 shadow-raised lg:border-0 lg:p-0 lg:shadow-none">
-            {view === 'signin' ? (
-              <SignInForm email={email} setEmail={setEmail} onForgot={() => setView('reset')} />
-            ) : (
-              <ResetForm email={email} setEmail={setEmail} onBack={() => setView('signin')} />
+            {view === 'signin' && (
+              <SignInForm email={email} setEmail={setEmail} onForgot={() => setView('reset')} onSignUp={() => setView('signup')} />
             )}
+            {view === 'reset' && <ResetForm email={email} setEmail={setEmail} onBack={() => setView('signin')} />}
+            {view === 'signup' && <SignUpForm email={email} setEmail={setEmail} onBack={() => setView('signin')} />}
             <p className="mt-6 flex items-start gap-2 text-xs text-ink-subtle">
               <ShieldCheck className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
               Access is limited to approved PACU staff. Activity in this application may be logged.
