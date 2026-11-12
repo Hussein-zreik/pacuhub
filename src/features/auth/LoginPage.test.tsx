@@ -26,12 +26,12 @@ function renderLogin(overrides: Partial<AuthContextValue> = {}) {
   return value;
 }
 
-describe('LoginPage (email + password, shared with SNV2)', () => {
+describe('LoginPage (email + password)', () => {
   it('offers email/password and hides Google by default', () => {
     renderLogin();
     expect(screen.getByLabelText('Email')).toBeInTheDocument();
     expect(screen.getByLabelText('Password')).toBeInTheDocument();
-    expect(screen.getByText(/same email and password you use for snv2/i)).toBeInTheDocument();
+    expect(screen.getByText(/given to you by your nurse manager/i)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /google/i })).not.toBeInTheDocument();
   });
 
@@ -73,7 +73,7 @@ describe('LoginPage (email + password, shared with SNV2)', () => {
     const auth = renderLogin();
     await user.type(screen.getByLabelText('Email'), 'nurse@aub.edu.lb');
     await user.click(screen.getByRole('button', { name: /forgot password/i }));
-    expect(screen.getByText(/also changes your snv2 password/i)).toBeInTheDocument();
+    expect(screen.getByText(/also use this account for snv2/i)).toBeInTheDocument();
     expect(screen.getByLabelText('Email')).toHaveValue('nurse@aub.edu.lb');
     await user.click(screen.getByRole('button', { name: /send reset link/i }));
     expect(auth.sendPasswordReset).toHaveBeenCalledWith('nurse@aub.edu.lb');

@@ -65,7 +65,7 @@ function SignInForm({ email, setEmail, onForgot }: { email: string; setEmail: (v
     <>
       <h2 className="text-2xl font-bold tracking-tight text-ink">Sign in</h2>
       <p className="mt-1.5 text-sm text-ink-muted">
-        {passwordEnabled ? 'Use the same email and password you use for SNV2.' : `Use your ${APP.institution} Google account to continue.`}
+        {passwordEnabled ? 'Use the email and password given to you by your Nurse Manager.' : `Use your ${APP.institution} Google account to continue.`}
       </p>
 
       <div className="mt-6 space-y-3 empty:hidden">
@@ -197,7 +197,7 @@ function ResetForm({ email, setEmail, onBack }: { email: string; setEmail: (v: s
         <>
           <p className="mt-1.5 text-sm text-ink-muted">We'll email you a link to choose a new password.</p>
           <Alert tone="info" className="mt-4">
-            PACU Hub and SNV2 share the same account, so this also changes your SNV2 password.
+            If you also use this account for SNV2, this changes that password too.
           </Alert>
           <form className="mt-6 space-y-4" onSubmit={(e) => void submit(e)} noValidate>
             <Field label="Email" htmlFor={emailId}>
