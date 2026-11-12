@@ -27,8 +27,6 @@ const envSchema = z.object({
   VITE_FIREBASE_MESSAGING_SENDER_ID: optionalString,
   VITE_FIREBASE_APP_ID: optionalString,
 
-  VITE_ROLE_SOURCE: z.enum(['claims', 'firestore', 'claims-firestore']).default('claims-firestore'),
-  VITE_USERS_COLLECTION: z.string().trim().min(1).default('users'),
   VITE_ALLOWED_EMAIL_DOMAINS: csvList,
 
   VITE_IDLE_TIMEOUT_MINUTES: z.coerce.number().min(1).max(60).default(5),
@@ -37,8 +35,6 @@ const envSchema = z.object({
   VITE_SNV2_URL: z.url({ protocol: /^https?$/ }).optional(),
   VITE_SNV2_MODE: z.enum(['embed', 'launch']).default('launch'),
 });
-
-export type RoleSource = z.infer<typeof envSchema>['VITE_ROLE_SOURCE'];
 
 export interface FirebaseWebConfig {
   apiKey: string;
@@ -52,8 +48,6 @@ export interface FirebaseWebConfig {
 export interface AppEnv {
   /** `null` when the Firebase web config is incomplete. */
   firebase: FirebaseWebConfig | null;
-  roleSource: RoleSource;
-  usersCollection: string;
   allowedEmailDomains: string[];
   idleTimeoutMs: number;
   idleWarningMs: number;
@@ -111,8 +105,6 @@ export function parseEnv(raw: Record<string, unknown>): AppEnv {
 
   return {
     firebase,
-    roleSource: config.VITE_ROLE_SOURCE,
-    usersCollection: config.VITE_USERS_COLLECTION,
     allowedEmailDomains: config.VITE_ALLOWED_EMAIL_DOMAINS,
     idleTimeoutMs,
     idleWarningMs,

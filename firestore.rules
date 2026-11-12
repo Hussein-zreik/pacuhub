@@ -1,0 +1,116 @@
+rules_version = '2';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PACU Hub — Firestore Security Rules
+//
+// These rules are the REAL access control. The app's UI hides things a user
+// can't do, but only these rules actually prevent it.
+//
+// Access model (users/{uid}):
+//   1. On first sign-in, a user may create their OWN record, and only as a
+//      pending request with no roles.
+//   2. A user may refresh their own name/photo/last-sign-in — never their
+//      roles or status.
+//   3. Only an active admin may change another user's roles/status.
+//      Admins cannot change their own record (prevents self-lockout).
+//   4. Nothing is ever deleted — deactivated users keep their record for the
+//      audit trail.
+//
+// Anything not explicitly allowed below is denied by default.
+//
+// ⚠️ If this Firebase project already has rules for other collections (for
+// example SNV2 data), MERGE this `users` block into them — do not replace
+// the existing rules file wholesale.
+// ─────────────────────────────────────────────────────────────────────────────
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helpers ──────────────────────────────────────────────────────────────
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // Optional: restrict sign-up to institutional accounts. To enable, replace
+    // the body with e.g.:
+    //   return request.auth.token.email_verified == true
+    //       && request.auth.token.email.matches('.*@(aub[.]edu[.]lb|aubmc[.]org[.]lb)$');
+    function institutionalEmail() {
+      return request.auth.token.email_verified == true;
+    }
+
+    function profile() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isActive() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && profile().status == 'active';
+    }
+
+    function hasRole(role) {
+      return isActive() && role in profile().roles;
+    }
+
+    function isAdmin() {
+      return hasRole('admin');
+    }
+
+    function validRoles(roles) {
+      return roles is list
+        && roles.size() <= 4
+        && roles.hasOnly(['staff_nurse', 'charge_nurse', 'educator', 'admin']);
+    }
+
+    function optionalString(value) {
+      return value == null || (value is string && value.size() <= 300);
+    }
+
+    // ── Staff access records ─────────────────────────────────────────────────
+
+    match /users/{uid} {
+      // Users read their own record; admins read everyone (staff list).
+      allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
+
+      // First sign-in: create own record as a pending request with no roles.
+      allow create: if signedIn()
+        && request.auth.uid == uid
+        && institutionalEmail()
+        && request.resource.data.keys().hasOnly(
+             ['uid', 'email', 'displayName', 'photoURL', 'roles', 'status', 'createdAt', 'lastSignInAt'])
+        && request.resource.data.uid == uid
+        && request.resource.data.email == request.auth.token.email
+        && optionalString(request.resource.data.displayName)
+        && optionalString(request.resource.data.photoURL)
+        && request.resource.data.roles == []
+        && request.resource.data.status == 'pending'
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.lastSignInAt == request.time;
+
+      // Self-service: refresh own profile details only.
+      allow update: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['displayName', 'photoURL', 'lastSignInAt'])
+        && optionalString(request.resource.data.displayName)
+        && optionalString(request.resource.data.photoURL)
+        && request.resource.data.lastSignInAt == request.time;
+
+      // Admin: grant / change / revoke another user's access.
+      allow update: if isAdmin()
+        && request.auth.uid != uid
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['roles', 'status', 'updatedAt', 'updatedBy'])
+        && validRoles(request.resource.data.roles)
+        && request.resource.data.status in ['pending', 'active', 'disabled']
+        // An active account must have at least one role.
+        && (request.resource.data.status != 'active' || request.resource.data.roles.size() > 0)
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.updatedAt == request.time;
+
+      allow delete: if false;
+    }
+  }
+}

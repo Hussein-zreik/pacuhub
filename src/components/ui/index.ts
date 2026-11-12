@@ -7,3 +7,5 @@ export * from './EmptyState';
 export * from './Skeleton';
 export * from './Spinner';
 export * from './PageHeader';
+export * from './Avatar';
+export * from './Input';

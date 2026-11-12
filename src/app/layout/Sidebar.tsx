@@ -39,7 +39,7 @@ export function Sidebar() {
                   <>
                     {isActive && <span className="absolute inset-y-2 left-0 w-1 rounded-r-full bg-brand-600" aria-hidden="true" />}
                     <Icon className="size-5 shrink-0" />
-                    <span className="truncate">{label}</span>
+                    <span className="max-w-full text-center leading-tight lg:truncate lg:text-left">{label}</span>
                     {status === 'planned' && (
                       <Badge tone="neutral" className="ml-auto hidden lg:inline-flex">
                         Soon

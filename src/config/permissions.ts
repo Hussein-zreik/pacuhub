@@ -23,6 +23,14 @@ export const ROLE_LABELS: Record<Role, string> = {
   admin: 'Nurse Manager / Admin',
 };
 
+/** Plain-language summaries shown when an admin assigns roles. */
+export const ROLE_DESCRIPTIONS: Record<Role, string> = {
+  staff_nurse: 'Schedule and PACU forms.',
+  charge_nurse: 'Everything a staff nurse can do, plus reviewing and co-signing forms.',
+  educator: 'Enters and reviews unit audits, education records and exports.',
+  admin: 'Full access, including approving staff and assigning roles.',
+};
+
 export const CAPABILITIES = [
   'schedule.view',
   'forms.submit',

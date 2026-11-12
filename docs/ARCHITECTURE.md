@@ -14,7 +14,7 @@ src/
 ├── app/            Composition root: providers, router, guards, shell layout, session guard
 ├── core/modules/   Module registry: contract, validation, auto-discovery
 ├── features/       One folder per module (plugin); also auth screens
-│   ├── home/  schedule/  forms/  audits/
+│   ├── home/  schedule/  forms/  audits/  staff-access/
 │   └── auth/       Login, Access Pending, Access Error (not a module)
 ├── components/
 │   ├── ui/         Presentational primitives (Button, Card, Dialog, EmptyState…)
@@ -22,7 +22,7 @@ src/
 │   └── brand/      BrandMark: the single logo slot
 ├── context/        AuthContext (auth + authorization state machine)
 ├── hooks/          Reusable hooks (idle timeout, online status, document title)
-├── services/       ALL external I/O: firebase/, auth/, firestore/, monitoring/
+├── services/       ALL external I/O: firebase/, auth/, users/, firestore/, monitoring/
 ├── config/         env (validated), permissions matrix, app constants
 ├── utils/          Pure helpers (permissions, errors, cn)
 └── styles/         Design tokens (Tailwind @theme)
@@ -81,17 +81,30 @@ The boundary resets automatically on navigation. A root-level boundary in `main.
 ```
 initializing ─┬─► signedOut                 → Login
               └─► resolving ─┬─► authorized   → App shell
-                             ├─► unauthorized → Access Pending (signed in, no role)
+                             ├─► unauthorized → "Access request sent" (pending) / "Access deactivated"
                              └─► error        → Retry screen (never a lock-out)
 ```
 
 - **Sign-in:** Google popup, with automatic fallback to redirect if popups are blocked. `prompt=select_account` is always set, so the next nurse on a shared workstation never silently inherits the previous Google session.
-- **Roles:** `services/auth/roleService.ts` reads custom claims and/or a Firestore `users/{uid}` document, depending on `VITE_ROLE_SOURCE`. `normalizeRoles` accepts `role`, `roles[]` or `{ admin: true }` shapes. Unknown values are ignored, so a malformed claim can only *reduce* access.
+- **Single source of truth:** each user's Firestore record `users/{uid}` holds their `roles[]` and `status`. Setup steps are in [ACCESS_SETUP.md](ACCESS_SETUP.md).
+  - **First sign-in** creates a *pending request* (`services/users/userProfileService.ts → ensureUserProfile`).
+  - **Live subscription:** the app watches the user's own record, so approvals, role changes and revocations apply to open sessions within seconds. A revocation also clears the data cache.
+  - **Access rule:** `status === 'active'` **and** at least one known role (`services/users/access.ts → decideAccess`). Malformed data fails closed: unknown roles are dropped, and an unknown status reads as pending.
+- **Staff Access module (admin):** approve, decline, edit roles, deactivate and reactivate. It is a regular plugin module gated by `admin.manage`.
 - **Capabilities, not roles:** UI code calls `can('audits.export')`. It never checks `role === 'admin'`. The role-to-capability matrix lives in one file: `config/permissions.ts`.
 - **Domain restriction:** `VITE_ALLOWED_EMAIL_DOMAINS` signs out non-institutional accounts with a clear message.
-- **Race safety:** role lookups use a request counter, so a stale result can never overwrite a newer user's state.
+- **Race safety:** a request counter means a stale lookup or subscription can never overwrite a newer user's state.
 
-> ⚠️ **Client-side checks control what is *shown*. They are not a security boundary.** Every permission must also be enforced in Firestore Security Rules.
+### Security rules (`firestore.rules`)
+
+The UI only *shows or hides*. The rules *enforce*:
+
+- Users can create only their **own** record, and only as `pending` with no roles. Their email must match their Google token.
+- Users can update only their name, photo and last sign-in, **never** their roles or status.
+- Only an **active admin** can change another user's `roles` and `status`. The change is validated against the known roles and statuses and stamped with `updatedBy` and `updatedAt`.
+- Admins **cannot edit their own record**, which prevents an admin from locking themselves out.
+- Nothing can be deleted (audit trail). Anything not explicitly allowed is denied.
+- `rules-tests/users.rules.test.ts` holds 30 executable scenarios, run against the Firestore emulator with `npm run test:rules`.
 
 ## 6. Inactivity auto-logout (`hooks/useIdleTimeout.ts`)
 
@@ -119,8 +132,8 @@ initializing ─┬─► signedOut                 → Login
 
 | Area | Current default | Waiting on |
 |---|---|---|
-| Role matrix | Provisional draft in `config/permissions.ts` | Confirmation of B3/B4 |
-| Role storage | `claims-firestore` (supports both) | B1 |
+| Role matrix | Provisional draft in `config/permissions.ts` | Confirmation of B3 |
+| Role storage | ✅ Decided: Firestore `users/{uid}` + Staff Access module | — |
 | SNV2 | `launch` mode (new tab) | C1–C4 (hosting/auth, whether framing is allowed) |
 | Forms engine | Not yet built | E1–E5 (form list, fields, sign-off rules) |
 | Audits | Not yet built | F1–F5 (items, scoring, thresholds, exports) |

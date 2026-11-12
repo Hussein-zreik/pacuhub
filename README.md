@@ -8,6 +8,7 @@ The digital workspace for the **AUBMC Post-Anesthesia Care Unit**: one place for
 | Schedule (SNV2) | ✅ Live — launchpad or embedded, set in config |
 | PACU Forms | 🛠 Shell in place; forms pending definitions |
 | Unit Audits | 🛠 Shell in place; audit tools pending definitions |
+| Staff Access (admin) | ✅ Live: approve requests, assign roles, deactivate |
 
 ## Tech stack
 
@@ -23,6 +24,8 @@ npm run dev                  # http://localhost:5173
 
 Without a Firebase config, the app shows a **Configuration required** screen listing what's missing. It does not crash.
 
+**First deployment:** publish the security rules and create the first admin. Follow [docs/ACCESS_SETUP.md](docs/ACCESS_SETUP.md). It takes about 5 minutes.
+
 ## Scripts
 
 | Command | Purpose |
@@ -31,12 +34,12 @@ Without a Firebase config, the app shows a **Configuration required** screen lis
 | `npm run build` | Type-check and production build to `dist/` |
 | `npm run check` | Type-check, lint and run all tests (run this before every commit) |
 | `npm test` | Unit and integration tests |
+| `npm run test:rules` | Security-rules tests on the Firestore emulator (needs Java 11+) |
 
 ## Configuration
 
 All settings live in `.env.local`. See [`.env.example`](.env.example) for the full list with explanations. Key settings:
 
-- **`VITE_ROLE_SOURCE`**: where roles are read from (`claims`, `firestore`, or `claims-firestore`)
 - **`VITE_ALLOWED_EMAIL_DOMAINS`**: restricts sign-in to institutional accounts
 - **`VITE_IDLE_TIMEOUT_MINUTES`**: auto sign-out (default 5, with a 60-second warning)
 - **`VITE_SNV2_URL`** / **`VITE_SNV2_MODE`**: schedule integration (`launch` or `embed`)
@@ -48,9 +51,12 @@ npm run build
 firebase deploy --only hosting   # deploys the web app only; rules and backend are untouched
 ```
 
+Security rules are published separately, by pasting them in the Console. See [ACCESS_SETUP.md](docs/ACCESS_SETUP.md). This is deliberate: it stops a routine web deploy from overwriting rules that other apps in the same Firebase project may depend on.
+
 `firebase.json` sets SPA routing, security headers and long-lived caching for hashed assets.
 
 ## Documentation
 
 - [Architecture](docs/ARCHITECTURE.md): layers, dependency rules, auth state machine and resilience design
 - [Adding a module](docs/ADDING_A_MODULE.md): how to add a new tab without touching core code
+- [Staff access setup](docs/ACCESS_SETUP.md): security rules, first admin, roles and record format

@@ -61,10 +61,16 @@ describe('ProtectedLayout', () => {
     expect(screen.getByText(/verifying your access/i)).toBeInTheDocument();
   });
 
-  it('shows Access Pending for signed-in users without a role', () => {
-    renderWith({ status: 'unauthorized', user });
-    expect(screen.getByRole('heading', { name: /access pending/i })).toBeInTheDocument();
+  it('shows Access Pending for signed-in users awaiting approval', () => {
+    renderWith({ status: 'unauthorized', user, access: 'pending' });
+    expect(screen.getByRole('heading', { name: /access request sent/i })).toBeInTheDocument();
     expect(screen.queryByText('protected content')).not.toBeInTheDocument();
+  });
+
+  it('shows a deactivated notice (and no retry) for revoked users', () => {
+    renderWith({ status: 'unauthorized', user, access: 'disabled' });
+    expect(screen.getByRole('heading', { name: /access deactivated/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /check again/i })).not.toBeInTheDocument();
   });
 
   it('shows a retryable error (not a lock-out) when roles cannot be loaded', () => {

@@ -5,9 +5,13 @@
  * to render — no combinations of `loading && !error && user` booleans:
  *
  *   initializing ─┬─► signedOut
- *                 └─► resolving ─┬─► authorized   (has ≥1 role)
- *                                ├─► unauthorized (signed in, no role)
+ *                 └─► resolving ─┬─► authorized   (status active + ≥1 role)
+ *                                ├─► unauthorized (pending request, or deactivated)
  *                                └─► error        (couldn't verify — retryable)
+ *
+ * Access comes from the user's `users/{uid}` record, watched LIVE: when an
+ * admin approves, changes or revokes access, every open session of that user
+ * updates within seconds — no sign-out/sign-in needed.
  */
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -17,16 +21,17 @@ import type { Capability, Role } from '@/config/permissions';
 import { clearActivity, recordActivity } from '@/hooks/useIdleTimeout';
 import { toFriendlyAuthError } from '@/services/auth/authErrors';
 import { authService, isEmailDomainAllowed, toHubUser } from '@/services/auth/authService';
-import { resolveRoles } from '@/services/auth/roleService';
 import type { HubUser, SignOutReason } from '@/services/auth/types';
 import { logger } from '@/services/monitoring/logger';
+import { decideAccess } from '@/services/users/access';
+import { ensureUserProfile, watchUserProfile } from '@/services/users/userProfileService';
 import { capabilitiesFor, hasAll } from '@/utils/permissions';
 
 export type AuthState =
   | { status: 'initializing' }
   | { status: 'signedOut' }
   | { status: 'resolving'; user: HubUser }
-  | { status: 'unauthorized'; user: HubUser }
+  | { status: 'unauthorized'; user: HubUser; access: 'pending' | 'disabled' }
   | { status: 'error'; user: HubUser; message: string }
   | { status: 'authorized'; user: HubUser; roles: Role[]; capabilities: ReadonlySet<Capability> };
 
@@ -39,7 +44,7 @@ export interface AuthContextValue {
   lastSignOutReason: SignOutReason | null;
   signIn: () => Promise<void>;
   signOut: (reason?: SignOutReason) => Promise<void>;
-  /** Re-check roles (e.g. after an admin grants access). Forces a token refresh. */
+  /** Re-check access (normally automatic via the live subscription). */
   refreshAccess: () => Promise<void>;
 }
 
@@ -54,47 +59,81 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Guards against out-of-order async results (e.g. fast account switching).
   const requestId = useRef(0);
+  const stopWatching = useRef<(() => void) | null>(null);
 
-  const evaluate = useCallback(async (user: HubUser | null, raw: User | null, forceRefresh = false) => {
-    const id = ++requestId.current;
-
-    if (!user || !raw) {
-      setState({ status: 'signedOut' });
-      return;
-    }
-
-    if (!isEmailDomainAllowed(user.email, env.allowedEmailDomains)) {
-      setLastSignOutReason('domain-not-allowed');
-      await authService.signOut(); // auth listener then moves us to `signedOut`
-      return;
-    }
-
-    setState({ status: 'resolving', user });
-    try {
-      const { roles } = await resolveRoles(raw, { forceRefresh });
-      if (id !== requestId.current) return;
-      setState(
-        roles.length > 0
-          ? { status: 'authorized', user, roles, capabilities: capabilitiesFor(roles) }
-          : { status: 'unauthorized', user },
-      );
-    } catch (error) {
-      if (id !== requestId.current) return;
-      logger.error('Role resolution failed', error, { uid: user.uid });
-      setState({
-        status: 'error',
-        user,
-        message: 'We could not verify your access. Check the network connection and try again.',
-      });
-    }
+  const unwatch = useCallback(() => {
+    stopWatching.current?.();
+    stopWatching.current = null;
   }, []);
+
+  const evaluate = useCallback(
+    async (user: HubUser | null, raw: User | null) => {
+      const id = ++requestId.current;
+      unwatch();
+
+      if (!user || !raw) {
+        setState({ status: 'signedOut' });
+        return;
+      }
+
+      if (!isEmailDomainAllowed(user.email, env.allowedEmailDomains)) {
+        setLastSignOutReason('domain-not-allowed');
+        await authService.signOut(); // auth listener then moves us to `signedOut`
+        return;
+      }
+
+      const fail = (error: unknown) => {
+        if (id !== requestId.current) return;
+        logger.error('Access check failed', error, { uid: user.uid });
+        setState({
+          status: 'error',
+          user,
+          message: 'We could not verify your access. Check the network connection and try again.',
+        });
+      };
+
+      setState({ status: 'resolving', user });
+      try {
+        await ensureUserProfile(raw);
+      } catch (error) {
+        fail(error);
+        return;
+      }
+      if (id !== requestId.current) return;
+
+      stopWatching.current = watchUserProfile(
+        user.uid,
+        (profile) => {
+          if (id !== requestId.current) return;
+          const decision = decideAccess(profile);
+          if (decision.kind !== 'granted') queryClient.clear(); // revoked mid-session: drop cached data
+          setState((previous) => {
+            if (decision.kind !== 'granted') {
+              const next = { status: 'unauthorized', user, access: decision.kind } as const;
+              return previous.status === 'unauthorized' && previous.access === next.access ? previous : next;
+            }
+            // Keep the same object when nothing relevant changed, so a routine
+            // profile update (e.g. last sign-in time) doesn't re-render the app.
+            if (previous.status === 'authorized' && previous.roles.join() === decision.roles.join()) return previous;
+            return { status: 'authorized', user, roles: decision.roles, capabilities: capabilitiesFor(decision.roles) };
+          });
+        },
+        fail,
+      );
+    },
+    [queryClient, unwatch],
+  );
 
   useEffect(() => {
     authService.consumeRedirectResult().catch((error: unknown) => {
       setSignInError(toFriendlyAuthError(error).message);
     });
-    return authService.subscribe((user, raw) => void evaluate(user, raw));
-  }, [evaluate]);
+    const unsubscribe = authService.subscribe((user, raw) => void evaluate(user, raw));
+    return () => {
+      unsubscribe();
+      unwatch();
+    };
+  }, [evaluate, unwatch]);
 
   const signIn = useCallback(async () => {
     setIsSigningIn(true);
@@ -116,6 +155,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async (reason: SignOutReason = 'user') => {
       setLastSignOutReason(reason);
       clearActivity();
+      unwatch();
       // Drop every cached query so no clinical data survives into the next session.
       queryClient.clear();
       try {
@@ -125,13 +165,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setState({ status: 'signedOut' }); // fail closed: hide the app regardless
       }
     },
-    [queryClient],
+    [queryClient, unwatch],
   );
 
   const refreshAccess = useCallback(async () => {
     const raw = authService.currentFirebaseUser();
     if (!raw) return;
-    await evaluate(toHubUser(raw), raw, true);
+    await evaluate(toHubUser(raw), raw);
   }, [evaluate]);
 
   const value = useMemo<AuthContextValue>(

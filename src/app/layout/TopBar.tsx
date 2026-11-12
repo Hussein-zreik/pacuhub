@@ -2,7 +2,7 @@ import { LogOut } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router';
 import { BrandMark } from '@/components/brand/BrandMark';
-import { Badge, Button } from '@/components/ui';
+import { Avatar, Badge, Button } from '@/components/ui';
 import { ROLE_LABELS } from '@/config/permissions';
 import { useAuth } from '@/context/AuthContext';
 import { useModuleRegistry } from '@/core/modules/ModuleRegistryContext';
@@ -16,12 +16,6 @@ function useClock() {
     return () => window.clearInterval(id);
   }, []);
   return now;
-}
-
-function initials(name: string | null, email: string | null) {
-  const source = name?.trim() || email || '?';
-  const parts = source.split(/\s+/).filter(Boolean);
-  return ((parts[0]?.[0] ?? '') + (parts.length > 1 ? (parts.at(-1)?.[0] ?? '') : '')).toUpperCase();
 }
 
 export function TopBar() {
@@ -57,13 +51,7 @@ export function TopBar() {
             <p className="text-sm font-semibold text-ink">{user.displayName ?? user.email}</p>
             {primaryRole && <p className="text-xs text-ink-muted">{ROLE_LABELS[primaryRole]}</p>}
           </div>
-          {user.photoURL ? (
-            <img src={user.photoURL} alt="" referrerPolicy="no-referrer" className="size-9 rounded-full border border-line" />
-          ) : (
-            <span className="flex size-9 items-center justify-center rounded-full bg-brand-100 text-sm font-bold text-brand-800" aria-hidden="true">
-              {initials(user.displayName, user.email)}
-            </span>
-          )}
+          <Avatar name={user.displayName} email={user.email} photoURL={user.photoURL} />
           <Button variant="ghost" size="sm" onClick={() => void signOut('user')} aria-label="Sign out">
             <LogOut />
             <span className="hidden sm:inline">Sign out</span>

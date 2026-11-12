@@ -21,7 +21,6 @@ describe('parseEnv', () => {
     expect(env.idleTimeoutMs).toBe(5 * 60_000);
     expect(env.idleWarningMs).toBe(60_000);
     expect(env.snv2).toEqual({ url: null, mode: 'launch' });
-    expect(env.roleSource).toBe('claims-firestore');
   });
 
   it('treats blank .env values as unset', () => {

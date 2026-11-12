@@ -21,7 +21,7 @@ export function ProtectedLayout() {
     case 'signedOut':
       return <Navigate to="/login" replace state={{ from: location.pathname + location.search }} />;
     case 'unauthorized':
-      return <AccessPendingPage user={state.user} />;
+      return <AccessPendingPage user={state.user} access={state.access} />;
     case 'error':
       return <AccessErrorPage message={state.message} />;
     case 'authorized':
