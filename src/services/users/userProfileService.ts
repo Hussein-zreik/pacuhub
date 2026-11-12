@@ -44,7 +44,7 @@ export async function ensureUserProfile(user: User): Promise<void> {
         email: user.email,
         displayName: user.displayName,
         photoURL: user.photoURL,
-        roles: [],
+        access: {},
         status: 'pending',
         createdAt: serverTimestamp(),
         lastSignInAt: serverTimestamp(),
@@ -90,10 +90,14 @@ export async function listUserProfiles(): Promise<UserProfile[]> {
     .filter((profile): profile is UserProfile => profile !== null);
 }
 
-/** Admin only (enforced by rules): change another user's roles and/or status. */
+/**
+ * Admin only (enforced by rules): set a user's access and/or status.
+ * The WHOLE access map is written (never merged), so removed areas are
+ * really removed.
+ */
 export async function updateUserAccess(uid: string, change: AccessChange, adminUid: string): Promise<void> {
   await updateDoc(userRef(uid), {
-    roles: change.roles,
+    access: { ...change.access },
     status: change.status,
     updatedAt: serverTimestamp(),
     updatedBy: adminUid,

@@ -6,8 +6,8 @@
  * and CI — never discovered by a nurse mid-shift.
  */
 import { lazy } from 'react';
-import type { Capability } from '@/config/permissions';
-import { hasAll } from '@/utils/permissions';
+import { canOpenModule } from '@/core/permissions/catalog';
+import { NO_ACCESS, type AccessMap } from '@/core/permissions/types';
 import type { HubModuleDefinition, RegisteredModule } from './types';
 
 const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -32,6 +32,7 @@ export function buildRegistry(definitions: readonly HubModuleDefinition[]): read
     if (paths.has(def.path)) throw new ModuleRegistryError(`Duplicate module path "${def.path}" (module "${def.id}").`);
     ids.add(def.id);
     paths.add(def.path);
+    validatePermissions(def);
   }
 
   return Object.freeze(
@@ -49,11 +50,26 @@ export function buildRegistry(definitions: readonly HubModuleDefinition[]): read
   );
 }
 
-export function accessibleModules(
-  registry: readonly RegisteredModule[],
-  granted: ReadonlySet<Capability>,
-): RegisteredModule[] {
-  return registry.filter((module) => hasAll(granted, module.requires));
+function validatePermissions(def: HubModuleDefinition) {
+  const permissions = def.permissions;
+  if (!permissions) return;
+  if (permissions.levels.length === 0) throw new ModuleRegistryError(`"${def.id}" declares permissions with no levels.`);
+  const levelIds = new Set<string>();
+  for (const level of permissions.levels) {
+    if (!SLUG.test(level.id) || level.id === NO_ACCESS) throw new ModuleRegistryError(`Invalid level "${level.id}" in "${def.id}".`);
+    if (levelIds.has(level.id)) throw new ModuleRegistryError(`Duplicate level "${level.id}" in "${def.id}".`);
+    levelIds.add(level.id);
+  }
+  const areaIds = new Set<string>();
+  for (const area of permissions.areas ?? []) {
+    if (!SLUG.test(area.id)) throw new ModuleRegistryError(`Invalid area "${area.id}" in "${def.id}".`);
+    if (areaIds.has(area.id)) throw new ModuleRegistryError(`Duplicate area "${area.id}" in "${def.id}".`);
+    areaIds.add(area.id);
+  }
+}
+
+export function accessibleModules(registry: readonly RegisteredModule[], access: AccessMap): RegisteredModule[] {
+  return registry.filter((module) => canOpenModule(module, access));
 }
 
 /**

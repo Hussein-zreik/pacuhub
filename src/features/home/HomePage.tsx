@@ -1,10 +1,12 @@
 import { ArrowRight, ShieldCheck } from 'lucide-react';
 import { Link } from 'react-router';
 import { Badge, Card } from '@/components/ui';
-import { ROLE_LABELS } from '@/config/permissions';
+import { accessLabel } from '@/config/accessPresets';
 import { env } from '@/config/env';
 import { useAuth } from '@/context/AuthContext';
-import { useAccessibleModules } from '@/core/modules/ModuleRegistryContext';
+import { useAccessibleModules, usePermissionCatalog } from '@/core/modules/ModuleRegistryContext';
+import { summarizeAccess } from '@/core/permissions/catalog';
+import type { AccessMap } from '@/core/permissions/types';
 
 function greeting(hour: number) {
   if (hour < 12) return 'Good morning';
@@ -12,11 +14,15 @@ function greeting(hour: number) {
   return 'Good evening';
 }
 
+const NO_ACCESS: AccessMap = {};
+
 export default function HomePage() {
   const { state } = useAuth();
+  const catalog = usePermissionCatalog();
   const modules = useAccessibleModules().filter((module) => module.showInNav && module.id !== 'home');
   const user = state.status === 'authorized' ? state.user : null;
-  const roles = state.status === 'authorized' ? state.roles : [];
+  const access = state.status === 'authorized' ? state.access : NO_ACCESS;
+  const summary = new Map(summarizeAccess(access, catalog).map((item) => [item.moduleId, item.detail]));
   const firstName = user?.displayName?.split(' ')[0];
 
   return (
@@ -27,18 +33,14 @@ export default function HomePage() {
           {firstName ? `, ${firstName}` : ''}
         </h2>
         <p className="mt-1 text-ink-muted">What would you like to do?</p>
-        <div className="mt-4 flex flex-wrap gap-2">
-          {roles.map((role) => (
-            <Badge key={role} tone="brand">
-              {ROLE_LABELS[role]}
-            </Badge>
-          ))}
+        <div className="mt-4">
+          <Badge tone="brand">{accessLabel(access, catalog)}</Badge>
         </div>
       </section>
 
       <section aria-labelledby="modules-heading">
         <h3 id="modules-heading" className="sr-only">
-          Modules
+          Your modules
         </h3>
         <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {modules.map(({ id, path, label, description, icon: Icon, status }) => (
@@ -54,6 +56,7 @@ export default function HomePage() {
                   </div>
                   <p className="mt-4 text-lg font-semibold text-ink">{label}</p>
                   <p className="mt-1 flex-1 text-sm text-ink-muted">{description}</p>
+                  {summary.get(id) && <p className="mt-3 text-xs font-semibold text-brand-700">Your access: {summary.get(id)}</p>}
                   <span className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-brand-700">
                     Open <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
                   </span>

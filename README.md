@@ -8,7 +8,7 @@ The digital workspace for the **AUBMC Post-Anesthesia Care Unit**: one place for
 | Schedule (SNV2) | ✅ Live — launchpad or embedded, set in config |
 | PACU Forms | 🛠 Shell in place; forms pending definitions |
 | Unit Audits | 🛠 Shell in place; audit tools pending definitions |
-| Staff Access (admin) | ✅ Live: approve requests, assign roles, deactivate |
+| Staff Access (admin) | ✅ Live: approve requests, set access per tab and per audit type, deactivate |
 
 ## Tech stack
 
@@ -60,4 +60,4 @@ Security rules are published separately, by pasting them in the Console. See [AC
 
 - [Architecture](docs/ARCHITECTURE.md): layers, dependency rules, auth state machine and resilience design
 - [Adding a module](docs/ADDING_A_MODULE.md): how to add a new tab without touching core code
-- [Staff access setup](docs/ACCESS_SETUP.md): security rules, first admin, roles and record format
+- [Staff access setup](docs/ACCESS_SETUP.md): security rules, first admin, per-tab access and record format

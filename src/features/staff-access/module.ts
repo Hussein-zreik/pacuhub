@@ -4,10 +4,12 @@ import { defineModule } from '@/core/modules/types';
 export default defineModule({
   id: 'staff-access',
   label: 'Staff Access',
-  description: 'Approve access requests and manage staff roles.',
+  description: 'Approve access requests and choose what each person can use.',
   icon: UserCog,
   path: 'staff-access',
   order: 90,
-  requires: 'admin.manage',
+  permissions: {
+    levels: [{ id: 'admin', label: 'Admin', description: "Approve staff and manage everyone's access." }],
+  },
   load: () => import('./StaffAccessModule'),
 });

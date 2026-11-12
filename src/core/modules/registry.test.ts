@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { capabilitiesFor } from '@/utils/permissions';
 import { accessibleModules, buildRegistry, definitionsFromGlob } from './registry';
 import { defineModule, type HubModuleDefinition } from './types';
 
@@ -34,6 +33,17 @@ describe('buildRegistry', () => {
     expect(() => buildRegistry([make({ path: 'login' })])).toThrow(/reserved/);
   });
 
+  it('rejects malformed permission declarations', () => {
+    expect(() => buildRegistry([make({ permissions: { levels: [] } })])).toThrow(/no levels/);
+    expect(() => buildRegistry([make({ permissions: { levels: [{ id: 'none', label: 'x' }] } })])).toThrow(/Invalid level/);
+    expect(() =>
+      buildRegistry([make({ permissions: { levels: [{ id: 'view', label: 'a' }, { id: 'view', label: 'b' }] } })]),
+    ).toThrow(/Duplicate level/);
+    expect(() =>
+      buildRegistry([make({ permissions: { levels: [{ id: 'view', label: 'a' }], areas: [{ id: 'A B', label: 'x' }] } })]),
+    ).toThrow(/Invalid area/);
+  });
+
   it('returns an immutable registry', () => {
     const registry = buildRegistry([make({})]);
     expect(Object.isFrozen(registry)).toBe(true);
@@ -42,13 +52,15 @@ describe('buildRegistry', () => {
 });
 
 describe('accessibleModules', () => {
-  it('filters modules by the capabilities a role grants', () => {
+  it('shows each person only the modules they have access to', () => {
+    const view = { levels: [{ id: 'view', label: 'View' }] };
     const registry = buildRegistry([
       make({ id: 'open', path: 'open' }),
-      make({ id: 'audits', path: 'audits', requires: 'audits.view' }),
+      make({ id: 'schedule', path: 'schedule', permissions: view }),
+      make({ id: 'audits', path: 'audits', permissions: view }),
     ]);
-    expect(accessibleModules(registry, capabilitiesFor(['staff_nurse'])).map((m) => m.id)).toEqual(['open']);
-    expect(accessibleModules(registry, capabilitiesFor(['educator'])).map((m) => m.id)).toEqual(['open', 'audits']);
+    expect(accessibleModules(registry, { schedule: 'view' }).map((m) => m.id)).toEqual(['open', 'schedule']);
+    expect(accessibleModules(registry, { audits: 'view' }).map((m) => m.id)).toEqual(['open', 'audits']);
   });
 });
 

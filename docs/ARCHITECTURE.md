@@ -87,12 +87,15 @@ initializing ─┬─► signedOut                 → Login
 
 - **Sign-in:** **email + password, using the same Firebase accounts as SNV2** (one login for both apps). Every credential failure shows the same message, so the screen never reveals which emails have accounts. "Forgot password?" sends Firebase's reset email.
   - **Google sign-in is supported but off** (`VITE_SIGN_IN_METHODS`). In this shared project it could replace an SNV2 user's password login. If it's ever enabled, it uses a popup that falls back to redirect, with `prompt=select_account` set so the next nurse on a shared workstation never inherits the previous Google session.
-- **Single source of truth:** each user's Firestore record `pacuhub_users/{uid}` holds their `roles[]` and `status`. Setup steps are in [ACCESS_SETUP.md](ACCESS_SETUP.md).
+- **Single source of truth:** each user's Firestore record `pacuhub_users/{uid}` holds their `access` map and `status`. Setup steps are in [ACCESS_SETUP.md](ACCESS_SETUP.md).
   - **First sign-in** creates a *pending request* (`services/users/userProfileService.ts → ensureUserProfile`).
   - **Live subscription:** the app watches the user's own record, so approvals, role changes and revocations apply to open sessions within seconds. A revocation also clears the data cache.
-  - **Access rule:** `status === 'active'` **and** at least one known role (`services/users/access.ts → decideAccess`). Malformed data fails closed: unknown roles are dropped, and an unknown status reads as pending.
-- **Staff Access module (admin):** approve, decline, edit roles, deactivate and reactivate. It is a regular plugin module gated by `admin.manage`.
-- **Capabilities, not roles:** UI code calls `can('audits.export')`. It never checks `role === 'admin'`. The role-to-capability matrix lives in one file: `config/permissions.ts`.
+  - **Access rule:** `status === 'active'` **and** access to at least one tab (`services/users/access.ts → decideAccess`). Malformed data fails closed: non-string levels are dropped, and an unknown status reads as pending.
+- **Per-person, per-tab access** (`core/permissions/`): each module declares its own access **levels** in `module.ts` (low → high; higher includes lower), plus optional **sub-areas** such as audit types. A person's access is a flat map, e.g. `{ "schedule": "view", "audits:infection-control": "enter" }`.
+  - **Catalog:** the permission catalog is built from the module registry, so new tabs and audit types appear in Staff Access automatically.
+  - **Checks:** UI code asks *what* someone can do (`usePermissions().can('audits:brief-op-notes', 'view')`), never *who* they are. Unknown keys or levels grant nothing.
+  - **Templates** (`config/accessPresets.ts`) fill in common sets, with wildcards (`audits:*`, `*`, `max`) so future areas are covered.
+- **Staff Access module (admin):** approve, decline, edit per-tab access (from templates or by hand), deactivate and reactivate. It is a regular plugin module whose single level is `admin`. It warns while there are fewer than two admins.
 - **Domain restriction:** `VITE_ALLOWED_EMAIL_DOMAINS` signs out non-institutional accounts with a clear message.
 - **Race safety:** a request counter means a stale lookup or subscription can never overwrite a newer user's state.
 
@@ -100,12 +103,13 @@ initializing ─┬─► signedOut                 → Login
 
 The UI only *shows or hides*. The rules *enforce*:
 
-- Users can create only their **own** record, and only as `pending` with no roles. Their email must match their sign-in token. Verification isn't required, because unit-created accounts are unverified; admin approval is the gate.
-- Users can update only their name, photo and last sign-in, **never** their roles or status.
-- Only an **active admin** can change another user's `roles` and `status`. The change is validated against the known roles and statuses and stamped with `updatedBy` and `updatedAt`.
-- Admins **cannot edit their own record**, which prevents an admin from locking themselves out.
+- Users can create only their **own** record, and only as `pending` with no access. Their email must match their sign-in token. Verification isn't required, because unit-created accounts are unverified; admin approval is the gate.
+- Users can update only their name, photo and last sign-in, **never** their access or status.
+- Only an **active admin** (`"staff-access": "admin"`) can change another user's `access` and `status`. Every change is stamped with `updatedBy` and `updatedAt`.
+- Admins can adjust their **own** tab access, but can never remove their own admin level or deactivate themselves, so there's no lockout.
+- Future data collections use the `hasLevel(key, levels)` helper, e.g. `hasLevel('audits:infection-control', ['enter', 'full'])`.
 - Nothing can be deleted (audit trail). Anything not explicitly allowed is denied.
-- `rules-tests/users.rules.test.ts` holds 30 executable scenarios, run against the Firestore emulator with `npm run test:rules`.
+- `rules-tests/users.rules.test.ts` holds 34 executable scenarios, run against the Firestore emulator with `npm run test:rules`.
 
 ## 6. Inactivity auto-logout (`hooks/useIdleTimeout.ts`)
 
@@ -133,8 +137,8 @@ The UI only *shows or hides*. The rules *enforce*:
 
 | Area | Current default | Waiting on |
 |---|---|---|
-| Role matrix | Provisional draft in `config/permissions.ts` | Confirmation of B3 |
-| Role storage | ✅ Decided: Firestore `pacuhub_users/{uid}` + Staff Access module | — |
+| Access model | ✅ Decided: per-person, per-tab levels, per-audit-type for Audits, templates, 2 admins | — |
+| Access storage | ✅ Decided: Firestore `pacuhub_users/{uid}` + Staff Access module | — |
 | SNV2 | `launch` mode (new tab) | C1–C4 (hosting/auth, whether framing is allowed) |
 | Forms engine | Not yet built | E1–E5 (form list, fields, sign-off rules) |
 | Audits | Not yet built | F1–F5 (items, scoring, thresholds, exports) |

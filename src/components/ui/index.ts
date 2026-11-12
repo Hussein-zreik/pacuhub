@@ -9,3 +9,4 @@ export * from './Spinner';
 export * from './PageHeader';
 export * from './Avatar';
 export * from './Input';
+export * from './SegmentedControl';

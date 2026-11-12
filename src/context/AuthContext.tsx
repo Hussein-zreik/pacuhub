@@ -5,7 +5,7 @@
  * to render — no combinations of `loading && !error && user` booleans:
  *
  *   initializing ─┬─► signedOut
- *                 └─► resolving ─┬─► authorized   (status active + ≥1 role)
+ *                 └─► resolving ─┬─► authorized   (status active + ≥1 granted area)
  *                                ├─► unauthorized (pending request, or deactivated)
  *                                └─► error        (couldn't verify — retryable)
  *
@@ -17,7 +17,8 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { useQueryClient } from '@tanstack/react-query';
 import type { User } from 'firebase/auth';
 import { env } from '@/config/env';
-import type { Capability, Role } from '@/config/permissions';
+import { sameAccess } from '@/core/permissions/catalog';
+import type { AccessMap } from '@/core/permissions/types';
 import { clearActivity, recordActivity } from '@/hooks/useIdleTimeout';
 import { toFriendlyAuthError } from '@/services/auth/authErrors';
 import { authService, isEmailDomainAllowed, toHubUser } from '@/services/auth/authService';
@@ -25,7 +26,6 @@ import type { HubUser, SignOutReason } from '@/services/auth/types';
 import { logger } from '@/services/monitoring/logger';
 import { decideAccess } from '@/services/users/access';
 import { ensureUserProfile, watchUserProfile } from '@/services/users/userProfileService';
-import { capabilitiesFor, hasAll } from '@/utils/permissions';
 
 export type AuthState =
   | { status: 'initializing' }
@@ -33,7 +33,7 @@ export type AuthState =
   | { status: 'resolving'; user: HubUser }
   | { status: 'unauthorized'; user: HubUser; access: 'pending' | 'disabled' }
   | { status: 'error'; user: HubUser; message: string }
-  | { status: 'authorized'; user: HubUser; roles: Role[]; capabilities: ReadonlySet<Capability> };
+  | { status: 'authorized'; user: HubUser; access: AccessMap };
 
 export interface AuthContextValue {
   state: AuthState;
@@ -120,8 +120,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
             // Keep the same object when nothing relevant changed, so a routine
             // profile update (e.g. last sign-in time) doesn't re-render the app.
-            if (previous.status === 'authorized' && previous.roles.join() === decision.roles.join()) return previous;
-            return { status: 'authorized', user, roles: decision.roles, capabilities: capabilitiesFor(decision.roles) };
+            if (previous.status === 'authorized' && sameAccess(previous.access, decision.access)) return previous;
+            return { status: 'authorized', user, access: decision.access };
           });
         },
         fail,
@@ -225,17 +225,4 @@ export function useAuth(): AuthContextValue {
   const context = useContext(AuthContext);
   if (!context) throw new Error('useAuth must be used inside <AuthProvider>.');
   return context;
-}
-
-/** Capability checks for role-based UI. Safe to call in any auth state. */
-export function usePermissions() {
-  const { state } = useAuth();
-  return useMemo(() => {
-    const granted: ReadonlySet<Capability> = state.status === 'authorized' ? state.capabilities : new Set();
-    const roles: Role[] = state.status === 'authorized' ? state.roles : [];
-    return {
-      roles,
-      can: (required?: Capability | readonly Capability[]) => hasAll(granted, required),
-    };
-  }, [state]);
 }

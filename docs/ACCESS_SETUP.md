@@ -3,7 +3,7 @@
 PACU Hub stores each staff member's access in Firestore at `pacuhub_users/{uid}`. The flow is:
 
 1. **A nurse signs in** with their SNV2 email and password. PACU Hub automatically creates a **pending access request**, and the nurse sees "Access request sent".
-2. **An admin opens Staff Access**, reviews the request and assigns one or more roles.
+2. **An admin opens Staff Access**, reviews the request and chooses which tabs (and which audit types) the person can use, and at what level.
 3. **The nurse's screen opens PACU Hub by itself** within seconds. They don't need to sign in again.
 
 Deactivating someone works the same way: they are signed out of every open session within seconds. Records are never deleted, so the history is kept.
@@ -39,22 +39,42 @@ The rules deliberately stop anyone from granting themselves access, so the very 
 2. Open **Firebase Console → Firestore Database → Data → `pacuhub_users`**.
 3. Open the document whose `email` matches that account.
 4. Edit two fields:
-   - `status` → `active` (string)
-   - `roles` → an **array** with one string item: `admin`
-5. Save. The waiting PACU Hub screen opens the app automatically.
+   - `status` → `active` (type: string)
+   - `access` → it's an empty **map**. Click **+** to add one field inside it: name `staff-access`, type string, value `admin`.
+5. Save. The waiting PACU Hub screen opens the app automatically, showing the **Staff Access** tab.
+6. In **Staff Access → Active → Edit my access**, choose the **Nurse Manager / Admin** template (or any tabs you need) and save.
 
-From then on, manage everyone from **Staff Access** inside PACU Hub. Use the Console only in an emergency. We recommend at least **two admins**, because an admin can't change their own access.
+From then on, manage everyone from **Staff Access** inside PACU Hub. Use the Console only in an emergency.
 
-## Roles
+**Make a second admin straight away.** PACU Hub shows a warning until there are two. An admin can adjust their own tabs but can never remove their own admin access or deactivate themselves, so the unit can't lose its last admin by accident.
 
-| Role (stored value) | Shown as | Can do |
+## Access: per person, per tab
+
+Each person's access is chosen **tab by tab**. For **Unit Audits** it's chosen **audit type by audit type**. Each tab offers levels, and a higher level includes everything below it:
+
+| Tab | Levels (low → high) | Stored key |
 |---|---|---|
-| `staff_nurse` | Staff Nurse | Schedule, PACU forms |
-| `charge_nurse` | Charge Nurse | + view all forms, co-sign |
-| `educator` | Educator / Auditor | + audits, education records, exports |
-| `admin` | Nurse Manager / Admin | Everything, including Staff Access |
+| Schedule | View schedule | `schedule` |
+| PACU Forms | Fill forms → Fill & review | `forms` |
+| Unit Audits: Brief Op Notes | View results → Enter & view → Enter, view & export | `audits:brief-op-notes` |
+| Unit Audits: Staff Education | (same) | `audits:staff-education` |
+| Unit Audits: Infection Control & Safety | (same) | `audits:infection-control` |
+| Staff Access | Admin | `staff-access` |
 
-A person can hold several roles. Their permissions are combined. The matrix is defined in `src/config/permissions.ts`.
+**Examples**
+- *Nurse X, Infection Control audits only:* `{ "audits:infection-control": "enter" }`
+- *Nurse Y, schedule only:* `{ "schedule": "view" }`
+
+**Templates** fill in a typical set in one click. You can then adjust it, and it shows as "Custom".
+
+| Template | Gives |
+|---|---|
+| Staff Nurse | Schedule, Fill forms |
+| Charge Nurse | Schedule, Fill & review forms |
+| Educator / Auditor | Schedule, Fill forms, and *Enter, view & export* on **every** audit type |
+| Nurse Manager / Admin | Everything at the highest level, including Staff Access |
+
+Templates are defined in `src/config/accessPresets.ts`. A tab's levels are declared in its own `module.ts`, and audit types live in `src/features/audits/categories.ts`. A new tab or audit type appears in Staff Access automatically.
 
 ## Record format (`pacuhub_users/{uid}`)
 
@@ -62,7 +82,7 @@ A person can hold several roles. Their permissions are combined. The matrix is d
 |---|---|---|
 | `uid`, `email` | string | The app on first sign-in (cannot change later) |
 | `displayName`, `photoURL` | string or null | The app, refreshed each sign-in |
-| `roles` | array of strings | Admins only |
+| `access` | map: tab key → level (see above) | Admins only (starts empty) |
 | `status` | `pending`, `active` or `disabled` | Admins only (users start as `pending`) |
 | `createdAt`, `lastSignInAt` | timestamp | The app (server time) |
 | `updatedAt`, `updatedBy` | timestamp, admin uid | Recorded automatically on every admin change |

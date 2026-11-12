@@ -1,4 +1,4 @@
-import type { Role } from '@/config/permissions';
+import type { AccessMap } from '@/core/permissions/types';
 
 export const ACCESS_STATUSES = ['pending', 'active', 'disabled'] as const;
 export type AccessStatus = (typeof ACCESS_STATUSES)[number];
@@ -9,7 +9,8 @@ export interface UserProfile {
   email: string | null;
   displayName: string | null;
   photoURL: string | null;
-  roles: Role[];
+  /** Per-tab / per-area access levels. Empty = no access. */
+  access: AccessMap;
   status: AccessStatus;
   createdAt: Date | null;
   lastSignInAt: Date | null;
@@ -19,6 +20,6 @@ export interface UserProfile {
 }
 
 export interface AccessChange {
-  roles: Role[];
+  access: AccessMap;
   status: AccessStatus;
 }

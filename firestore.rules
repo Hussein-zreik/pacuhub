@@ -10,12 +10,18 @@ rules_version = '2';
 // collide with SNV2's data in the same Firebase project.
 //
 // Access model (pacuhub_users/{uid}):
+//   Each person has an `access` map: tab/area → level, e.g.
+//     { "schedule": "view", "audits:infection-control": "enter",
+//       "staff-access": "admin" }
+//   A missing key means no access. Unknown values grant nothing.
+//
 //   1. On first sign-in, a user may create their OWN record, and only as a
-//      pending request with no roles.
+//      pending request with NO access.
 //   2. A user may refresh their own name/photo/last-sign-in — never their
-//      roles or status.
-//   3. Only an active admin may change another user's roles/status.
-//      Admins cannot change their own record (prevents self-lockout).
+//      access or status.
+//   3. Only an active admin ("staff-access": "admin") may change access.
+//      Admins may adjust their own tab access, but can never remove their
+//      own admin level or deactivate themselves (prevents lockout).
 //   4. Nothing is ever deleted — deactivated users keep their record for the
 //      audit trail.
 //
@@ -58,18 +64,26 @@ service cloud.firestore {
         && profile().status == 'active';
     }
 
-    function hasRole(role) {
-      return isActive() && role in profile().roles;
+    // The person's level in one tab/area, or 'none'.
+    function accessOf(key) {
+      return profile().get('access', {}).get(key, 'none');
+    }
+
+    // Use in future collections' rules, e.g. for audit data:
+    //   allow create: if hasLevel('audits:infection-control', ['enter', 'full']);
+    //   allow read:   if hasLevel('audits:infection-control', ['view', 'enter', 'full']);
+    function hasLevel(key, allowedLevels) {
+      return isActive() && accessOf(key) in allowedLevels;
     }
 
     function isAdmin() {
-      return hasRole('admin');
+      return hasLevel('staff-access', ['admin']);
     }
 
-    function validRoles(roles) {
-      return roles is list
-        && roles.size() <= 4
-        && roles.hasOnly(['staff_nurse', 'charge_nurse', 'educator', 'admin']);
+    // Values are validated by the app; unknown levels grant nothing because
+    // every data rule checks for explicit level names (see hasLevel).
+    function validAccess(access) {
+      return access is map && access.size() <= 64;
     }
 
     function optionalString(value) {
@@ -82,17 +96,17 @@ service cloud.firestore {
       // Users read their own record; admins read everyone (staff list).
       allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
 
-      // First sign-in: create own record as a pending request with no roles.
+      // First sign-in: create own record as a pending request with no access.
       allow create: if signedIn()
         && request.auth.uid == uid
         && hasAccountEmail()
         && request.resource.data.keys().hasOnly(
-             ['uid', 'email', 'displayName', 'photoURL', 'roles', 'status', 'createdAt', 'lastSignInAt'])
+             ['uid', 'email', 'displayName', 'photoURL', 'access', 'status', 'createdAt', 'lastSignInAt'])
         && request.resource.data.uid == uid
         && request.resource.data.email == request.auth.token.email
         && optionalString(request.resource.data.displayName)
         && optionalString(request.resource.data.photoURL)
-        && request.resource.data.roles == []
+        && request.resource.data.access == {}
         && request.resource.data.status == 'pending'
         && request.resource.data.createdAt == request.time
         && request.resource.data.lastSignInAt == request.time;
@@ -106,15 +120,26 @@ service cloud.firestore {
         && optionalString(request.resource.data.photoURL)
         && request.resource.data.lastSignInAt == request.time;
 
-      // Admin: grant / change / revoke another user's access.
+      // Admin: grant / change / revoke ANOTHER user's access.
       allow update: if isAdmin()
         && request.auth.uid != uid
         && request.resource.data.diff(resource.data).affectedKeys()
-             .hasOnly(['roles', 'status', 'updatedAt', 'updatedBy'])
-        && validRoles(request.resource.data.roles)
+             .hasOnly(['access', 'status', 'updatedAt', 'updatedBy'])
+        && validAccess(request.resource.data.access)
         && request.resource.data.status in ['pending', 'active', 'disabled']
-        // An active account must have at least one role.
-        && (request.resource.data.status != 'active' || request.resource.data.roles.size() > 0)
+        // An active account must have access to at least one tab.
+        && (request.resource.data.status != 'active' || request.resource.data.access.size() > 0)
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.updatedAt == request.time;
+
+      // Admin: adjust their OWN tab access — but the admin level must stay,
+      // and status can't change (no self-deactivation / lockout).
+      allow update: if isAdmin()
+        && request.auth.uid == uid
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['access', 'updatedAt', 'updatedBy'])
+        && validAccess(request.resource.data.access)
+        && request.resource.data.access.get('staff-access', 'none') == 'admin'
         && request.resource.data.updatedBy == request.auth.uid
         && request.resource.data.updatedAt == request.time;
 

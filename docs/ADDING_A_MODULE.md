@@ -27,7 +27,12 @@ export default defineModule({
   icon: ArrowRightLeft,
   path: 'handover',               // URL: /handover/*
   order: 25,                      // position in the nav
-  requires: 'forms.submit',       // capability gate (optional)
+  permissions: {                  // access levels, low → high (optional: omit = everyone)
+    levels: [
+      { id: 'view', label: 'View handovers' },
+      { id: 'write', label: 'Write handovers' },
+    ],
+  },
   status: 'preview',              // 'live' | 'preview' | 'planned'
   load: () => import('./HandoverModule'),
 });
@@ -50,14 +55,15 @@ export default function HandoverModule() {
 }
 ```
 
-That's all. The sidebar, bottom nav, Home card, route, permission gate, error boundary and loading skeleton are applied automatically.
+That's all. The sidebar, bottom nav, Home card, route, permission gate, error boundary and loading skeleton are applied automatically, and the new tab's levels appear in **Staff Access** so admins can grant them per person.
 
 ## Rules (enforced by ESLint)
 
 - ❌ Don't import from another feature. Move shared code to `src/components`, `src/hooks` or `src/services`.
 - ❌ Don't import `firebase` in a feature. Add a function or repository in `src/services`.
-- ✅ Check access with `usePermissions().can('capability')`, not with role names.
-- ✅ If a new capability is needed, add it to `src/config/permissions.ts` and to the Firestore Security Rules.
+- ✅ Check access with `usePermissions().can('handover', 'write')` (from `@/core/permissions/usePermissions`). Never check who someone is.
+- ✅ Protect the module's Firestore data with the matching rule, e.g. `allow write: if hasLevel('handover', ['write']);`
+- ✅ Need sub-areas, each with its own level (like audit types)? Add `areas: [{ id, label }]` to `permissions`.
 
 ## Before committing
 

@@ -4,7 +4,6 @@ import { describe, expect, it, vi } from 'vitest';
 import { AuthContext, type AuthContextValue, type AuthState } from '@/context/AuthContext';
 import { ModuleRegistryProvider } from '@/core/modules/ModuleRegistryContext';
 import { buildRegistry } from '@/core/modules/registry';
-import { capabilitiesFor } from '@/utils/permissions';
 import { ProtectedLayout } from './ProtectedLayout';
 
 const user = { uid: 'u1', email: 'nurse@aub.edu.lb', displayName: 'Rania Haddad', photoURL: null };
@@ -18,7 +17,7 @@ const registry = buildRegistry([
     icon: () => null,
     path: 'audits',
     order: 1,
-    requires: 'audits.view',
+    permissions: { levels: [{ id: 'view', label: 'View' }] },
     load: async () => ({ default: () => null }),
   },
 ]);
@@ -73,14 +72,13 @@ describe('ProtectedLayout', () => {
     expect(screen.queryByRole('button', { name: /check again/i })).not.toBeInTheDocument();
   });
 
-  it('shows a retryable error (not a lock-out) when roles cannot be loaded', () => {
+  it('shows a retryable error (not a lock-out) when access cannot be loaded', () => {
     renderWith({ status: 'error', user, message: 'offline' });
     expect(screen.getByRole('button', { name: /try again/i })).toBeInTheDocument();
   });
 
   it('renders the shell with role-filtered navigation for authorized users', () => {
-    const roles = ['staff_nurse'] as const;
-    renderWith({ status: 'authorized', user, roles: [...roles], capabilities: capabilitiesFor([...roles]) });
+    renderWith({ status: 'authorized', user, access: { schedule: 'view' } });
     expect(screen.getByText('protected content')).toBeInTheDocument();
     expect(screen.getAllByRole('link', { name: /home/i }).length).toBeGreaterThan(0);
     expect(screen.queryByRole('link', { name: /unit audits/i })).not.toBeInTheDocument();

@@ -11,23 +11,23 @@ import { Link, useLocation } from 'react-router';
 import { ErrorBoundary } from '@/components/feedback/ErrorBoundary';
 import { ModuleErrorFallback } from '@/components/feedback/ModuleErrorFallback';
 import { Button, Card, EmptyState, ModuleSkeleton } from '@/components/ui';
-import { usePermissions } from '@/context/AuthContext';
 import type { RegisteredModule } from '@/core/modules/types';
+import { usePermissions } from '@/core/permissions/usePermissions';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { logger } from '@/services/monitoring/logger';
 
 export function ModuleHost({ module }: { module: RegisteredModule }) {
-  const { can } = usePermissions();
+  const { canOpen } = usePermissions();
   const { pathname } = useLocation();
   useDocumentTitle(module.label);
 
-  if (!can(module.requires)) {
+  if (!canOpen(module)) {
     return (
       <Card>
         <EmptyState
           icon={Lock}
           title={`You don't have access to ${module.label}`}
-          description="If you need access for your role, contact your Nurse Manager."
+          description="If you need access, ask a PACU Hub admin to update your access in Staff Access."
           action={
             <Link to="/">
               <Button variant="secondary">Back to Home</Button>

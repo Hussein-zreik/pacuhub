@@ -1,5 +1,5 @@
 /**
- * Staff Access (admin only): approve access requests, assign roles, and
+ * Staff Access (admin only): approve access requests, set per-tab access, and
  * deactivate/reactivate staff. Changes apply to the person's open sessions
  * within seconds via their live access subscription.
  */
@@ -7,9 +7,10 @@ import { Inbox, RefreshCw, Search, UserCheck, UserX } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Alert, Button, Card, Dialog, EmptyState, Input, PageHeader, Skeleton } from '@/components/ui';
 import { useAuth } from '@/context/AuthContext';
+import { isAdmin } from '@/core/permissions/catalog';
 import type { AccessChange, UserProfile } from '@/services/users/types';
 import { cn } from '@/utils/cn';
-import { AccessDialog, type AccessDialogMode } from './components/AccessDialog';
+import { AccessEditor, type AccessEditorMode } from './components/AccessEditor';
 import { StaffRow, type StaffAction } from './components/StaffRow';
 import { useStaffList, useUpdateAccess } from './hooks/useStaff';
 import { FILTER_LABELS, countByStatus, filterStaff, friendlySaveError, type StaffFilter } from './logic';
@@ -30,6 +31,7 @@ export default function StaffAccessModule() {
 
   const staff = useMemo(() => staffQuery.data ?? [], [staffQuery.data]);
   const counts = useMemo(() => countByStatus(staff), [staff]);
+  const adminCount = useMemo(() => staff.filter((p) => p.status === 'active' && isAdmin(p.access)).length, [staff]);
   const [filter, setFilter] = useState<StaffFilter | null>(null);
   const activeFilter: StaffFilter = filter ?? (counts.pending > 0 ? 'pending' : 'active');
   const [search, setSearch] = useState('');
@@ -46,13 +48,20 @@ export default function StaffAccessModule() {
     <>
       <PageHeader
         title="Staff Access"
-        description="Approve access requests and manage what each staff member can do."
+        description="Approve requests and choose exactly which tabs, and which audit types, each person can use."
         actions={
           <Button variant="secondary" size="sm" onClick={() => void staffQuery.refetch()} loading={staffQuery.isFetching && !staffQuery.isLoading}>
             {!staffQuery.isFetching && <RefreshCw />} Refresh
           </Button>
         }
       />
+
+      {staffQuery.isSuccess && adminCount < 2 && (
+        <Alert tone="warning" title="Add a second admin" className="mb-4">
+          PACU Hub has only one admin. Give a trusted colleague <span className="font-semibold">Staff Access: Admin</span> so someone
+          can approve staff when you're away. Admins can't remove their own admin access.
+        </Alert>
+      )}
 
       <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div role="tablist" aria-label="Filter staff" className="inline-flex rounded-lg border border-line bg-surface p-1 shadow-sm">
@@ -122,9 +131,10 @@ export default function StaffAccessModule() {
       </Card>
 
       {pending && pending.action !== 'deactivate' && (
-        <AccessDialog
+        <AccessEditor
           person={pending.person}
-          mode={pending.action as AccessDialogMode}
+          mode={pending.action as AccessEditorMode}
+          isSelf={pending.person.uid === selfUid}
           saving={update.isPending}
           error={update.error}
           onSubmit={(change) => save(pending.person, change)}
@@ -140,7 +150,7 @@ export default function StaffAccessModule() {
           description={
             <>
               <span className="font-semibold text-ink">{pending.person.displayName ?? pending.person.email}</span> will be signed out of
-              PACU Hub within seconds. Their record and roles are kept so access can be restored later.
+              PACU Hub within seconds. Their record and access settings are kept so access can be restored later.
             </>
           }
           footer={
@@ -151,7 +161,7 @@ export default function StaffAccessModule() {
               <Button
                 variant="danger"
                 loading={update.isPending}
-                onClick={() => save(pending.person, { roles: pending.person.roles, status: 'disabled' })}
+                onClick={() => save(pending.person, { access: pending.person.access, status: 'disabled' })}
               >
                 Deactivate
               </Button>

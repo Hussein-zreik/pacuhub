@@ -8,6 +8,8 @@ export default defineModule({
   icon: CalendarDays,
   path: 'schedule',
   order: 10,
-  requires: 'schedule.view',
+  permissions: {
+    levels: [{ id: 'view', label: 'View schedule', description: 'Open the unit schedule (SNV2).' }],
+  },
   load: () => import('./ScheduleModule'),
 });

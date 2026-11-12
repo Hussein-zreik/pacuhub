@@ -5,7 +5,7 @@ import { Spinner } from './Spinner';
 
 /** Minimum 44px touch target on `md`/`lg` sizes — tablet-friendly by default. */
 export const buttonVariants = cva(
-  'inline-flex select-none items-center justify-center gap-2 rounded-lg font-semibold transition-colors disabled:pointer-events-none disabled:opacity-55 [&_svg]:size-[1.15em] [&_svg]:shrink-0',
+  'inline-flex select-none items-center justify-center gap-2 whitespace-nowrap rounded-lg font-semibold transition-colors disabled:pointer-events-none disabled:opacity-55 [&_svg]:size-[1.15em] [&_svg]:shrink-0',
   {
     variants: {
       variant: {

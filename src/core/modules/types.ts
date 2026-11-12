@@ -6,7 +6,7 @@
  * or navigation component needs to change. See docs/ADDING_A_MODULE.md.
  */
 import type { ComponentType, LazyExoticComponent } from 'react';
-import type { Capability } from '@/config/permissions';
+import type { ModulePermissions } from '@/core/permissions/types';
 
 export type ModuleStatus = 'live' | 'preview' | 'planned';
 
@@ -23,8 +23,12 @@ export interface HubModuleDefinition {
   path: string;
   /** Sort order in navigation (ascending). */
   order: number;
-  /** Capabilities the user must hold (ALL of them) to see and open this module. */
-  requires?: Capability | readonly Capability[];
+  /**
+   * Access levels this module offers (and optional sub-areas, e.g. audit
+   * types). They appear automatically in Staff Access. Omit for modules that
+   * every approved user may open (e.g. Home).
+   */
+  permissions?: ModulePermissions;
   /** `planned` modules show a "Soon" badge; useful while a module is being built. */
   status?: ModuleStatus;
   /** Set false for routes that should exist but not appear in the main nav. */

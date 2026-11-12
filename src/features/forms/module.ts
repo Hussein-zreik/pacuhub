@@ -8,7 +8,12 @@ export default defineModule({
   icon: ClipboardList,
   path: 'forms',
   order: 20,
-  requires: 'forms.submit',
+  permissions: {
+    levels: [
+      { id: 'fill', label: 'Fill forms', description: 'Complete and submit forms.' },
+      { id: 'review', label: 'Fill & review', description: 'Also see all submissions and co-sign.' },
+    ],
+  },
   status: 'planned',
   load: () => import('./FormsModule'),
 });
