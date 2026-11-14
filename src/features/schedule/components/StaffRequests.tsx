@@ -4,7 +4,7 @@
  * Requests are private to the SNV2 manager, so the manager connects their SNV2
  * login once; the session is per-tab and cleared on PACU Hub sign-out.
  */
-import { CalendarCheck, Check, Eye, EyeOff, History, Inbox, LinkIcon, Loader2, LogOut, RotateCcw, X } from 'lucide-react';
+import { CalendarCheck, Check, Eye, EyeOff, History, Inbox, LinkIcon, Loader2, LogOut, RotateCcw, Trash2, X } from 'lucide-react';
 import { useId, useState, type FormEvent } from 'react';
 import { Alert, Badge, Button, Card, Dialog, EmptyState, Input, Skeleton } from '@/components/ui';
 import type { DayOffDecision } from '@/services/schedule/dayOffDecisions';
@@ -95,14 +95,36 @@ type Feedback = { tone: 'success' | 'warning' | 'danger'; text: string } | null;
 const skippedText = (skipped: { date: string; why: string }[]) =>
   skipped.map((s) => `${formatDates([s.date])} (${s.why})`).join(', ');
 
+type RemoveTarget =
+  | { kind: 'one'; requestId: string; name: string; dates: string[]; hasDecision: boolean; state: 'pending' | 'approved' | 'rejected' | 'handled' }
+  | { kind: 'all' };
+
+/** Small "×" in the corner of a request: remove it for good (asks first). */
+function RemoveButton({ name, onClick, disabled }: { name: string; onClick: () => void; disabled?: boolean }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={`Remove ${name || 'this'} request`}
+      title="Remove request"
+      className="absolute right-2 top-2 flex size-9 items-center justify-center rounded-md text-ink-subtle transition-colors hover:bg-danger-50 hover:text-danger-700 disabled:opacity-40"
+    >
+      <X className="size-4" aria-hidden="true" />
+    </button>
+  );
+}
+
 function PendingItem({
   request,
   onApprove,
   onReject,
+  onRemove,
 }: {
   request: DayOffRequest;
   onApprove: () => Promise<{ applied: string[]; skipped: { date: string; why: string }[] }>;
   onReject: () => Promise<void>;
+  onRemove: () => void;
 }) {
   const [busy, setBusy] = useState<'approve' | 'reject' | null>(null);
   const [feedback, setFeedback] = useState<Feedback>(null);
@@ -125,7 +147,8 @@ function PendingItem({
   };
 
   return (
-    <li className="px-5 py-4">
+    <li className="relative px-5 py-4 pr-12">
+      <RemoveButton name={request.name} onClick={onRemove} disabled={busy !== null} />
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <p className="font-semibold text-ink">{request.name || 'Unknown'}</p>
@@ -154,10 +177,11 @@ function PendingItem({
   );
 }
 
-function HistoryItem({ decision, onUndo }: { decision: DayOffDecision; onUndo: () => void }) {
+function HistoryItem({ decision, onUndo, onRemove }: { decision: DayOffDecision; onUndo: () => void; onRemove: () => void }) {
   const approved = decision.decision === 'approved';
   return (
-    <li className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-start sm:justify-between">
+    <li className="relative flex flex-col gap-3 px-5 py-4 pr-12 sm:flex-row sm:items-start sm:justify-between">
+      <RemoveButton name={decision.name} onClick={onRemove} />
       <div className="min-w-0">
         <p className="flex flex-wrap items-center gap-2 font-semibold text-ink">
           {decision.name || 'Unknown'}
@@ -184,6 +208,8 @@ export function StaffRequests({ formId }: { formId: string | null }) {
   const [confirmUndo, setConfirmUndo] = useState<DayOffDecision | null>(null);
   const [undoing, setUndoing] = useState(false);
   const [undoMessage, setUndoMessage] = useState<Feedback>(null);
+  const [confirmRemove, setConfirmRemove] = useState<RemoveTarget | null>(null);
+  const [removing, setRemoving] = useState(false);
 
   if (!snv2.configured) {
     return <Alert tone="info">Day-off requests aren't connected. An administrator can set the SNV2 project in configuration.</Alert>;
@@ -222,6 +248,26 @@ export function StaffRequests({ formId }: { formId: string | null }) {
 
   const historyCount = snv2.decisions.length + snv2.handledElsewhere.length;
 
+  const doRemove = async () => {
+    if (!confirmRemove) return;
+    setRemoving(true);
+    setUndoMessage(null);
+    try {
+      if (confirmRemove.kind === 'all') {
+        const n = await snv2.clearHistory();
+        setUndoMessage({ tone: 'success', text: `History cleared: ${n} request${n === 1 ? '' : 's'} removed. The roster is unchanged.` });
+      } else {
+        await snv2.remove(confirmRemove);
+        setUndoMessage({ tone: 'success', text: `${confirmRemove.name || 'The'} request was removed. The roster is unchanged.` });
+      }
+    } catch (error) {
+      setUndoMessage({ tone: 'danger', text: (error as Error).message || "Couldn't remove. Please try again." });
+    } finally {
+      setRemoving(false);
+      setConfirmRemove(null);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -247,7 +293,12 @@ export function StaffRequests({ formId }: { formId: string | null }) {
             </button>
           ))}
         </div>
-        <div className="flex items-center gap-2 text-xs text-ink-muted">
+        <div className="flex flex-wrap items-center gap-2 text-xs text-ink-muted">
+          {tab === 'history' && historyCount > 0 && (
+            <Button size="sm" variant="secondary" className="text-danger-700" onClick={() => setConfirmRemove({ kind: 'all' })}>
+              <Trash2 /> Clear history
+            </Button>
+          )}
           <span>SNV2: {snv2.manager.email}</span>
           <Button size="sm" variant="ghost" onClick={() => void snv2.disconnect()}>
             <LogOut /> Disconnect
@@ -274,6 +325,9 @@ export function StaffRequests({ formId }: { formId: string | null }) {
                   request={request}
                   onApprove={() => snv2.approve(request)}
                   onReject={() => snv2.reject(request)}
+                  onRemove={() =>
+                    setConfirmRemove({ kind: 'one', requestId: request.id, name: request.name, dates: request.dates, hasDecision: false, state: 'pending' })
+                  }
                 />
               ))}
             </ul>
@@ -283,10 +337,30 @@ export function StaffRequests({ formId }: { formId: string | null }) {
         ) : (
           <ul className="divide-y divide-line">
             {snv2.decisions.map((decision) => (
-              <HistoryItem key={decision.id} decision={decision} onUndo={() => setConfirmUndo(decision)} />
+              <HistoryItem
+                key={decision.id}
+                decision={decision}
+                onUndo={() => setConfirmUndo(decision)}
+                onRemove={() =>
+                  setConfirmRemove({
+                    kind: 'one',
+                    requestId: decision.requestId,
+                    name: decision.name,
+                    dates: decision.dates,
+                    hasDecision: true,
+                    state: decision.decision,
+                  })
+                }
+              />
             ))}
             {snv2.handledElsewhere.map((request) => (
-              <li key={request.id} className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-start sm:justify-between">
+              <li key={request.id} className="relative flex flex-col gap-3 px-5 py-4 pr-12 sm:flex-row sm:items-start sm:justify-between">
+                <RemoveButton
+                  name={request.name}
+                  onClick={() =>
+                    setConfirmRemove({ kind: 'one', requestId: request.id, name: request.name, dates: request.dates, hasDecision: false, state: 'handled' })
+                  }
+                />
                 <div className="min-w-0">
                   <p className="flex flex-wrap items-center gap-2 font-semibold text-ink">
                     {request.name || 'Unknown'} <Badge>Handled in SNV2</Badge>
@@ -301,6 +375,47 @@ export function StaffRequests({ formId }: { formId: string | null }) {
           </ul>
         )}
       </Card>
+
+      {confirmRemove && (
+        <Dialog
+          open
+          onOpenChange={(open) => !open && !removing && setConfirmRemove(null)}
+          title={confirmRemove.kind === 'all' ? 'Clear history?' : confirmRemove.state === 'pending' ? 'Remove this request?' : 'Remove from history?'}
+          description={
+            confirmRemove.kind === 'all' ? (
+              <>
+                All <span className="font-semibold text-ink">{historyCount}</span> request{historyCount === 1 ? '' : 's'} in History will be
+                deleted from SNV2 and PACU Hub. The roster stays exactly as it is, including approved Req off days. Undo will no longer be
+                possible for them. This can't be reversed.
+              </>
+            ) : confirmRemove.state === 'pending' ? (
+              <>
+                <span className="font-semibold text-ink">{confirmRemove.name || 'This'}</span>'s request ({formatDates(confirmRemove.dates)}) will
+                be deleted from SNV2 without approving or rejecting it. They aren't notified. This can't be reversed.
+              </>
+            ) : (
+              <>
+                <span className="font-semibold text-ink">{confirmRemove.name || 'This'}</span>'s request ({formatDates(confirmRemove.dates)}) will
+                be deleted from SNV2 and PACU Hub.{' '}
+                {confirmRemove.state === 'approved'
+                  ? 'The Req off days already on the roster stay; Undo will no longer be possible.'
+                  : 'The roster is not changed.'}{' '}
+                This can't be reversed.
+              </>
+            )
+          }
+          footer={
+            <>
+              <Button variant="secondary" onClick={() => setConfirmRemove(null)} disabled={removing} data-autofocus>
+                Cancel
+              </Button>
+              <Button variant="danger" onClick={() => void doRemove()} loading={removing}>
+                {!removing && <Trash2 />} {confirmRemove.kind === 'all' ? 'Clear history' : 'Remove'}
+              </Button>
+            </>
+          }
+        />
+      )}
 
       {confirmUndo && (
         <Dialog

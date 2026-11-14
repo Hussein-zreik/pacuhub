@@ -155,6 +155,7 @@ Managers approve or reject staff day-off requests in **Schedule → Manager tool
   - **Stricter than the manual flow:** it skips locked (published) fortnights, past dates, and any day where the nurse already has an entry. It never overwrites an existing comment.
 - **Reject** records the decision. The roster is not touched.
 - **History / Undo:** decisions live in `pacuhub_dayoff_decisions` (Manage schedule only), including exactly which days an approval wrote. Undo removes only those days, and only if they are still PACU Hub's untouched Req off. Days changed in SNV2 are left alone. Days now in a locked fortnight cannot be undone and stay on record.
+- **Remove (×) and Clear history:** × on a Pending or History item, or **Clear history** on the History tab, permanently deletes the request from SNV2 (its own rules let the form owner do this) and PACU Hub's decision record. **The roster is never changed by removal**: approved Req off days stay, and Undo is no longer possible for them. Both ask for confirmation. SNV2 is deleted first, so if it refuses, nothing is removed from PACU Hub. Removals are written to the activity log.
 - **Consistency:** the roster is written first, then the decision is recorded. If the record can't be saved, the roster change is rolled back.
 - **Code:** pure logic in `src/services/snv2/roster.ts` (unit-tested), transaction in `rosterWrite.ts`. `rules-tests/snv2-roster.rules.test.ts` runs the real write against a verbatim copy of **SNV2's own firestore.rules** (`rules-tests/fixtures/`). Re-copy that file if SNV2's rules change.
 

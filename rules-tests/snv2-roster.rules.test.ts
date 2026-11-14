@@ -5,7 +5,7 @@
  */
 import { readFileSync } from 'node:fs';
 import { assertFails, assertSucceeds, initializeTestEnvironment, type RulesTestEnvironment } from '@firebase/rules-unit-testing';
-import { doc, getDoc, setDoc, type Firestore } from 'firebase/firestore';
+import { deleteDoc, doc, getDoc, setDoc, type Firestore } from 'firebase/firestore';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { applyReqOff, removeReqOff, todayIso } from '../src/services/snv2/roster';
 import { updateRoster } from '../src/services/snv2/rosterWrite';
@@ -95,5 +95,24 @@ describe('approve / undo against SNV2 rules', () => {
     const db = asManager();
     await assertFails(setDoc(doc(db, 'rosters', MANAGER), { ...roster(), rev: 7 }));
     await assertSucceeds(setDoc(doc(db, 'rosters', MANAGER), { ...roster(), rev: 8 }));
+  });
+});
+
+describe('remove a request (X / Clear history) against SNV2 rules', () => {
+  const FORM = 'AbCdEfGhIjKlMnOpQrSt12';
+  beforeEach(async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore() as unknown as Firestore;
+      await setDoc(doc(db, 'requestForms', FORM), { owner: MANAGER, open: true, title: 'PACU', anchor: '2026-11-02', ids: ['n0'], names: ['Lina'] });
+      await setDoc(doc(db, 'requestForms', FORM, 'requests', 'r1'), { rnId: 'n0', name: 'Lina', dates: '2026-12-01', reason: 'Exam', createdAt: new Date() });
+    });
+  });
+
+  it('the form owner (SNV2 manager) can delete a request', async () => {
+    await assertSucceeds(deleteDoc(doc(asManager(), 'requestForms', FORM, 'requests', 'r1')));
+  });
+
+  it('another SNV2 account cannot delete it', async () => {
+    await assertFails(deleteDoc(doc(asManager('someone-else'), 'requestForms', FORM, 'requests', 'r1')));
   });
 });

@@ -33,6 +33,7 @@ import {
   orderBy,
   query,
   updateDoc,
+  writeBatch,
   type Firestore,
 } from 'firebase/firestore';
 import { z } from 'zod';
@@ -172,6 +173,20 @@ export const snv2Requests = {
       (snap) => onData({ exists: snap.exists(), state: snap.exists() ? (snap.data() as { state?: unknown }).state : undefined }),
       onError,
     );
+  },
+
+  /**
+   * Permanently delete requests from the SNV2 form (SNV2's rules let the form
+   * owner do this). The roster is not touched. Deleting one that is already
+   * gone is a harmless no-op.
+   */
+  async deleteRequests(formId: string, requestIds: readonly string[]): Promise<void> {
+    const db = snv2Db();
+    for (let i = 0; i < requestIds.length; i += 400) {
+      const batch = writeBatch(db);
+      for (const id of requestIds.slice(i, i + 400)) batch.delete(doc(db, 'requestForms', formId, 'requests', id));
+      await batch.commit();
+    }
   },
 
   /** Mark a request handled / not handled (the only field SNV2 lets the owner change). */
