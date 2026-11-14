@@ -18,6 +18,7 @@ const svc = vi.hoisted(() => ({
     setDone: vi.fn(),
     approveIntoRoster: vi.fn(),
     removeFromRoster: vi.fn(),
+    deleteRequests: vi.fn(),
   },
 }));
 vi.mock('@/services/snv2/requestsService', () => svc);
@@ -27,6 +28,7 @@ const dec = vi.hoisted(() => ({
   watchDecisions: vi.fn(),
   saveDecision: vi.fn(),
   deleteDecision: vi.fn(),
+  deleteDecisions: vi.fn(),
   decisionId: (f: string, r: string) => `${f}__${r}`,
 }));
 vi.mock('@/services/schedule/dayOffDecisions', () => dec);
@@ -60,6 +62,8 @@ describe('Day-off requests: approve / reject / history / undo', () => {
     svc.snv2Requests.setDone.mockResolvedValue(undefined);
     dec.saveDecision.mockResolvedValue(undefined);
     dec.deleteDecision.mockResolvedValue(undefined);
+    dec.deleteDecisions.mockResolvedValue(undefined);
+    svc.snv2Requests.deleteRequests.mockResolvedValue(undefined);
   });
 
   it('asks to connect SNV2 when not signed in', () => {
@@ -172,5 +176,62 @@ describe('Day-off requests: approve / reject / history / undo', () => {
 
     await waitFor(() => expect(dec.deleteDecision).toHaveBeenCalled());
     expect(svc.snv2Requests.removeFromRoster).not.toHaveBeenCalled();
+  });
+
+  it('X on a pending request deletes it from SNV2 after confirming; roster untouched', async () => {
+    const user = userEvent.setup();
+    setup({ requests: [req()] });
+    wrap(<StaffRequests formId={FORM} />);
+    await user.click(screen.getByRole('button', { name: /remove lina saad request/i }));
+    const dialog = await screen.findByRole('dialog', { name: /remove this request/i });
+    expect(within(dialog).getByText(/without approving or rejecting/i)).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: /^remove$/i }));
+    await waitFor(() => expect(svc.snv2Requests.deleteRequests).toHaveBeenCalledWith(FORM, ['r1']));
+    expect(dec.deleteDecision).not.toHaveBeenCalled();
+    expect(svc.snv2Requests.removeFromRoster).not.toHaveBeenCalled();
+    expect(await screen.findByText(/roster is unchanged/i)).toBeInTheDocument();
+  });
+
+  it('X in History deletes the SNV2 request and the decision; approved days stay', async () => {
+    const user = userEvent.setup();
+    setup({ requests: [req({ id: 'r9', name: 'Omar Fares', done: true })], decisions: [decision()] });
+    wrap(<StaffRequests formId={FORM} />);
+    await user.click(screen.getByRole('tab', { name: /history/i }));
+    await user.click(screen.getByRole('button', { name: /remove omar fares request/i }));
+    const dialog = await screen.findByRole('dialog', { name: /remove from history/i });
+    expect(within(dialog).getByText(/req off days already on the roster stay/i)).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: /^remove$/i }));
+    await waitFor(() => expect(dec.deleteDecision).toHaveBeenCalledWith(FORM, 'r9'));
+    expect(svc.snv2Requests.deleteRequests).toHaveBeenCalledWith(FORM, ['r9']);
+    expect(svc.snv2Requests.removeFromRoster).not.toHaveBeenCalled();
+  });
+
+  it('Clear history removes every decided and handled request, not pending ones', async () => {
+    const user = userEvent.setup();
+    setup({
+      requests: [req({ id: 'p1' }), req({ id: 'r9', done: true }), req({ id: 'h1', name: 'Rana Haddad', done: true })],
+      decisions: [decision()],
+    });
+    wrap(<StaffRequests formId={FORM} />);
+    expect(screen.queryByRole('button', { name: /clear history/i })).not.toBeInTheDocument(); // only on the History tab
+    await user.click(screen.getByRole('tab', { name: /history/i }));
+    await user.click(screen.getByRole('button', { name: /clear history/i }));
+    const dialog = await screen.findByRole('dialog', { name: /clear history/i });
+    await user.click(within(dialog).getByRole('button', { name: /clear history/i }));
+    await waitFor(() => expect(dec.deleteDecisions).toHaveBeenCalledWith(FORM, ['r9']));
+    expect(svc.snv2Requests.deleteRequests).toHaveBeenCalledWith(FORM, ['r9', 'h1']);
+    expect(await screen.findByText(/2 requests removed/i)).toBeInTheDocument();
+  });
+
+  it('if SNV2 refuses the delete, nothing is removed from PACU Hub', async () => {
+    const user = userEvent.setup();
+    setup({ requests: [req({ id: 'r9', done: true })], decisions: [decision()] });
+    svc.snv2Requests.deleteRequests.mockRejectedValue(new Error('SNV2 refused the change.'));
+    wrap(<StaffRequests formId={FORM} />);
+    await user.click(screen.getByRole('tab', { name: /history/i }));
+    await user.click(screen.getByRole('button', { name: /remove omar fares request/i }));
+    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: /^remove$/i }));
+    expect(await screen.findByText(/snv2 refused the change/i)).toBeInTheDocument();
+    expect(dec.deleteDecision).not.toHaveBeenCalled();
   });
 });

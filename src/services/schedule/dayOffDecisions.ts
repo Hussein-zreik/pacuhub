@@ -5,7 +5,7 @@
  * approval wrote into the SNV2 roster, so Undo can remove precisely those.
  * Readable/writable only with "Manage schedule" (enforced in firestore.rules).
  */
-import { collection, deleteDoc, doc, onSnapshot, query, serverTimestamp, setDoc, where } from 'firebase/firestore';
+import { collection, deleteDoc, doc, onSnapshot, query, serverTimestamp, setDoc, where, writeBatch } from 'firebase/firestore';
 import { z } from 'zod';
 import { firestore } from '@/services/firebase/client';
 import { COLLECTIONS } from '@/services/firestore/collections';
@@ -84,4 +84,14 @@ export async function saveDecision(input: DecisionInput, uid: string): Promise<v
 
 export async function deleteDecision(formId: string, requestId: string): Promise<void> {
   await deleteDoc(ref(decisionId(formId, requestId)));
+}
+
+/** Delete several decision records (History clean-up). The roster is not touched. */
+export async function deleteDecisions(formId: string, requestIds: readonly string[]): Promise<void> {
+  const db = firestore();
+  for (let i = 0; i < requestIds.length; i += 400) {
+    const batch = writeBatch(db);
+    for (const id of requestIds.slice(i, i + 400)) batch.delete(ref(decisionId(formId, id)));
+    await batch.commit();
+  }
 }

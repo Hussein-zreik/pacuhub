@@ -10,7 +10,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { deleteDecision, saveDecision, watchDecisions, type DayOffDecision } from '@/services/schedule/dayOffDecisions';
+import { deleteDecision, deleteDecisions, saveDecision, watchDecisions, type DayOffDecision } from '@/services/schedule/dayOffDecisions';
 import { logActivity } from '@/services/activity/activityLog';
 import { logger } from '@/services/monitoring/logger';
 import { friendlySnv2Error, isSnv2Configured, snv2Requests, type DayOffRequest, type Snv2Manager } from '@/services/snv2/requestsService';
@@ -207,6 +207,41 @@ export function useSnv2Requests(formId: string | null) {
     [hubUid, markDone, log],
   );
 
+  /**
+   * Remove one request for good: delete it from SNV2 and drop PACU Hub's
+   * decision record (if any). The roster is NOT changed — approved days stay.
+   * SNV2 first, so a half-failure leaves the item visible and retryable.
+   */
+  const remove = useCallback(
+    async (item: { requestId: string; name: string; dates: string[]; hasDecision: boolean }): Promise<void> => {
+      if (!formId) throw new Error('No request form.');
+      try {
+        await snv2Requests.deleteRequests(formId, [item.requestId]);
+      } catch (error) {
+        throw new Error(friendlySnv2Error(error));
+      }
+      if (item.hasDecision) await deleteDecision(formId, item.requestId);
+      log(`Removed day-off request from ${item.name || 'Unknown'}: ${item.dates.join(', ')} (roster unchanged)`);
+    },
+    [formId, log],
+  );
+
+  /** Remove everything in History (decided + handled in SNV2). Roster unchanged. */
+  const clearHistory = useCallback(async (): Promise<number> => {
+    if (!formId) throw new Error('No request form.');
+    const decided = decisions.map((d) => d.requestId);
+    const ids = [...new Set([...decided, ...handledElsewhere.map((r) => r.id)])];
+    if (!ids.length) return 0;
+    try {
+      await snv2Requests.deleteRequests(formId, ids);
+    } catch (error) {
+      throw new Error(friendlySnv2Error(error));
+    }
+    await deleteDecisions(formId, decided);
+    log(`Cleared day-off request history: ${ids.length} request${ids.length === 1 ? '' : 's'} removed (roster unchanged)`);
+    return ids.length;
+  }, [formId, decisions, handledElsewhere, log]);
+
   return {
     configured,
     manager,
@@ -224,6 +259,8 @@ export function useSnv2Requests(formId: string | null) {
     approve,
     reject,
     undo,
+    remove,
+    clearHistory,
     reopen: (requestId: string) => markDone(requestId, false),
   };
 }
