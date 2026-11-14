@@ -55,7 +55,11 @@ export async function ensureUserProfile(user: User): Promise<void> {
       logger.info('Access request created', { uid: user.uid });
     } catch (error) {
       // Another tab may have created it a moment earlier — that's fine.
-      if (isPermissionDenied(error) && (await getDoc(ref)).exists()) return;
+      if (isPermissionDenied(error)) {
+        if ((await getDoc(ref)).exists()) return;
+        // Refused by the rules: most often the unit's sign-up domain policy.
+        throw Object.assign(new Error('Access request refused'), { code: 'pacuhub/request-refused' });
+      }
       throw error;
     }
     return;

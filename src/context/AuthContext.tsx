@@ -94,10 +94,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const fail = (error: unknown) => {
         if (id !== requestId.current) return;
         logger.error('Access check failed', error, { uid: user.uid });
+        const refused = (error as { code?: string }).code === 'pacuhub/request-refused';
         setState({
           status: 'error',
           user,
-          message: 'We could not verify your access. Check the network connection and try again.',
+          message: refused
+            ? "This email address can't request access to PACU Hub. Ask your Nurse Manager which email to use."
+            : 'We could not verify your access. Check the network connection and try again.',
         });
       };
 

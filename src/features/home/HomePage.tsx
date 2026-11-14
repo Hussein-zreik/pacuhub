@@ -1,9 +1,12 @@
-import { ArrowRight, CalendarPlus, ExternalLink, Moon, ShieldCheck, Sun, UserRoundCheck } from 'lucide-react';
+import { ArrowRight, CalendarPlus, ExternalLink, Megaphone, Moon, ShieldCheck, Sun, UserRoundCheck } from 'lucide-react';
 import { Link } from 'react-router';
 import { Badge, Card, buttonVariants } from '@/components/ui';
 import { accessLabel } from '@/config/accessPresets';
-import { env } from '@/config/env';
 import { useAuth } from '@/context/AuthContext';
+import { useSettings } from '@/context/SettingsContext';
+import { announcementActive } from '@/services/settings/model';
+import { cn } from '@/utils/cn';
+import { todayIso } from '@/utils/format';
 import { useAccessibleModules, usePermissionCatalog } from '@/core/modules/ModuleRegistryContext';
 import { summarizeAccess } from '@/core/permissions/catalog';
 import { usePermissions } from '@/core/permissions/usePermissions';
@@ -19,6 +22,8 @@ export default function HomePage() {
   const { can, isAdmin } = usePermissions();
   const catalog = usePermissionCatalog();
   const now = useClock(60_000);
+  const { appSettings, idle } = useSettings();
+  const announcement = appSettings.announcement;
 
   const user = state.status === 'authorized' ? state.user : null;
   const access = state.status === 'authorized' ? state.access : NO_ACCESS;
@@ -29,7 +34,7 @@ export default function HomePage() {
   const canSchedule = can('schedule', 'view');
   const { count: pending } = usePendingApprovals(isAdmin);
   const requestLink = useRequestLink(canSchedule);
-  const shift = currentShift(now);
+  const shift = currentShift(now, appSettings.shifts);
   const ShiftIcon = shift.id === 'day' ? Sun : Moon;
 
   return (
@@ -53,11 +58,25 @@ export default function HomePage() {
             <ShiftIcon className={`size-6 ${shift.id === 'day' ? 'text-warning-600' : 'text-brand-600'}`} aria-hidden="true" />
             <div className="leading-tight">
               <p className="text-sm font-semibold text-ink">{shift.label}</p>
-              <p className="text-xs text-ink-muted">{shift.id === 'day' ? '07:00 – 19:00' : '19:00 – 07:00'}</p>
+              <p className="text-xs text-ink-muted">{shift.hours}</p>
             </div>
           </div>
         </div>
       </section>
+
+      {/* Unit announcement */}
+      {announcementActive(announcement, todayIso(now)) && (
+        <div
+          role="status"
+          className={cn(
+            'flex items-start gap-3 rounded-card border p-4',
+            announcement.tone === 'warning' ? 'border-warning-600/30 bg-warning-50 text-warning-700' : 'border-brand-200 bg-brand-50 text-accent-strong',
+          )}
+        >
+          <Megaphone className="mt-0.5 size-5 shrink-0" aria-hidden="true" />
+          <p className="whitespace-pre-line text-sm font-medium">{announcement.text}</p>
+        </div>
+      )}
 
       {/* Admin: pending approvals */}
       {isAdmin && pending > 0 && (
@@ -127,7 +146,7 @@ export default function HomePage() {
 
       <p className="flex items-center gap-2 text-xs text-ink-subtle">
         <ShieldCheck className="size-4" aria-hidden="true" />
-        For patient privacy, you'll be signed out after {Math.round(env.idleTimeoutMs / 60_000)} minutes of inactivity.
+        For patient privacy, you'll be signed out after {idle.minutes} minutes of inactivity.
       </p>
     </div>
   );

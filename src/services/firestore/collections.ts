@@ -10,4 +10,6 @@ export const COLLECTIONS = {
   users: 'pacuhub_users',
   settings: 'pacuhub_settings',
   dayOffDecisions: 'pacuhub_dayoff_decisions',
+  prefs: 'pacuhub_prefs',
+  activity: 'pacuhub_activity',
 } as const;

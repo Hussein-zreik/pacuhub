@@ -7,13 +7,13 @@ import { NavLink } from 'react-router';
 import { BrandMark } from '@/components/brand/BrandMark';
 import { Badge } from '@/components/ui';
 import { APP } from '@/config/app';
-import { env } from '@/config/env';
+import { useSettings } from '@/context/SettingsContext';
 import { cn } from '@/utils/cn';
 import { useNavItems } from './navItems';
 
 export function Sidebar() {
   const items = useNavItems();
-  const idleMinutes = Math.round(env.idleTimeoutMs / 60_000);
+  const idleMinutes = useSettings().idle.minutes;
 
   return (
     <aside className="sticky top-0 hidden h-dvh w-24 shrink-0 flex-col border-r border-line bg-surface md:flex lg:w-64">

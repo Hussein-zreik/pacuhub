@@ -12,6 +12,8 @@ import { Alert, Button, Card, Input } from '@/components/ui';
 import { APP } from '@/config/app';
 import { env } from '@/config/env';
 import { useAuth } from '@/context/AuthContext';
+import { useSettings } from '@/context/SettingsContext';
+import { emailDomainAllowed } from '@/services/settings/model';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { GoogleIcon } from './GoogleIcon';
@@ -42,7 +44,8 @@ function SignInForm({ email, setEmail, onForgot, onSignUp }: { email: string; se
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
-  const idleMinutes = Math.round(env.idleTimeoutMs / 60_000);
+  const { publicSettings } = useSettings();
+  const idleMinutes = publicSettings.idle.maxMinutes;
   const passwordEnabled = env.signInMethods.includes('password');
   const googleEnabled = env.signInMethods.includes('google');
 
@@ -133,7 +136,7 @@ function SignInForm({ email, setEmail, onForgot, onSignUp }: { email: string; se
         </form>
       )}
 
-      {passwordEnabled && env.allowSignup && (
+      {passwordEnabled && env.allowSignup && publicSettings.signup.enabled && (
         <p className="mt-6 text-center text-sm text-ink-muted">
           New here?{' '}
           <button type="button" onClick={onSignUp} className="font-semibold text-brand-700 hover:underline">
@@ -235,6 +238,7 @@ function ResetForm({ email, setEmail, onBack }: { email: string; setEmail: (v: s
 
 function SignUpForm({ email, setEmail, onBack }: { email: string; setEmail: (v: string) => void; onBack: () => void }) {
   const { signUp, isSigningIn, signInError, clearSignInError } = useAuth();
+  const { publicSettings } = useSettings();
   const online = useOnlineStatus();
   const ids = { name: useId(), email: useId(), password: useId() };
   const [name, setName] = useState('');
@@ -248,6 +252,10 @@ function SignUpForm({ email, setEmail, onBack }: { email: string; setEmail: (v: 
     if (name.trim().length < 2) return setLocalError('Enter your full name.');
     if (!EMAIL_PATTERN.test(email.trim())) return setLocalError('Enter a valid email address.');
     if (password.length < 8) return setLocalError('Choose a password of at least 8 characters.');
+    const domains = publicSettings.signup.allowedDomains;
+    if (!emailDomainAllowed(email, domains)) {
+      return setLocalError(`Sign-up is limited to ${domains.map((d) => '@' + d).join(', ')} email addresses.`);
+    }
     void signUp(email, password, name);
   };
 

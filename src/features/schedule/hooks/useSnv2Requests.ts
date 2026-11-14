@@ -11,6 +11,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { deleteDecision, saveDecision, watchDecisions, type DayOffDecision } from '@/services/schedule/dayOffDecisions';
+import { logActivity } from '@/services/activity/activityLog';
 import { logger } from '@/services/monitoring/logger';
 import { friendlySnv2Error, isSnv2Configured, snv2Requests, type DayOffRequest, type Snv2Manager } from '@/services/snv2/requestsService';
 
@@ -30,6 +31,8 @@ export function useSnv2Requests(formId: string | null) {
   const configured = isSnv2Configured();
   const { state } = useAuth();
   const hubUid = state.status === 'authorized' ? state.user.uid : '';
+  const hubName = state.status === 'authorized' ? state.user.displayName || state.user.email || 'Unknown' : '';
+  const log = useCallback((summary: string) => void logActivity('dayoff', summary, { uid: hubUid, name: hubName }), [hubUid, hubName]);
 
   const [manager, setManager] = useState<Snv2Manager | null>(null);
   const [initializing, setInitializing] = useState(configured);
@@ -144,9 +147,10 @@ export function useSnv2Requests(formId: string | null) {
         throw new Error('Could not save the decision, so the roster change was reverted. Please try again.', { cause: error });
       }
       await markDone(request.id, true);
+      log(`Approved day off for ${request.name}: ${result.applied.join(', ')} added as Req off${result.skipped.length ? ` (${result.skipped.length} day(s) skipped)` : ''}`);
       return { applied: result.applied, skipped: result.skipped };
     },
-    [formId, hubUid, markDone],
+    [formId, hubUid, markDone, log],
   );
 
   const reject = useCallback(
@@ -168,8 +172,9 @@ export function useSnv2Requests(formId: string | null) {
         hubUid,
       );
       await markDone(request.id, true);
+      log(`Rejected day-off request from ${request.name}: ${request.dates.join(', ')}`);
     },
-    [formId, hubUid, markDone],
+    [formId, hubUid, markDone, log],
   );
 
   const undo = useCallback(
@@ -196,9 +201,10 @@ export function useSnv2Requests(formId: string | null) {
       }
       await deleteDecision(decision.formId, decision.requestId);
       await markDone(decision.requestId, false);
+      log(`Undid ${decision.decision === 'approved' ? 'approval' : 'rejection'} for ${decision.name}: ${decision.dates.join(', ')}`);
       return { locked, changedInSnv2 };
     },
-    [hubUid, markDone],
+    [hubUid, markDone, log],
   );
 
   return {

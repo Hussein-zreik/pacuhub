@@ -3,6 +3,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { useState, type ReactNode } from 'react';
 import { BrowserRouter } from 'react-router';
 import { AuthProvider } from '@/context/AuthContext';
+import { SettingsProvider } from '@/context/SettingsContext';
 import { ModuleRegistryProvider } from '@/core/modules/ModuleRegistryContext';
 import { moduleRegistry } from '@/core/modules/discovered';
 import { IdleSessionGuard } from '@/app/session/IdleSessionGuard';
@@ -16,10 +17,12 @@ export function AppProviders({ children }: { children: ReactNode }) {
     <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, '') || '/'}>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <ModuleRegistryProvider modules={moduleRegistry}>
-            {children}
-            <IdleSessionGuard />
-          </ModuleRegistryProvider>
+          <SettingsProvider>
+            <ModuleRegistryProvider modules={moduleRegistry}>
+              {children}
+              <IdleSessionGuard />
+            </ModuleRegistryProvider>
+          </SettingsProvider>
         </AuthProvider>
       </QueryClientProvider>
     </BrowserRouter>

@@ -7,6 +7,7 @@ import { Check, Lock, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Alert, Button, Dialog, SegmentedControl, type SegmentOption } from '@/components/ui';
 import { ACCESS_PRESETS, expandPreset, matchPreset } from '@/config/accessPresets';
+import { useSettings } from '@/context/SettingsContext';
 import { useModuleRegistry, usePermissionCatalog } from '@/core/modules/ModuleRegistryContext';
 import { hasAnyAccess, sanitizeAccess } from '@/core/permissions/catalog';
 import { ADMIN_AREA, ADMIN_LEVEL, NO_ACCESS, type AccessMap, type PermissionArea } from '@/core/permissions/types';
@@ -42,12 +43,14 @@ export function AccessEditor({ person, mode, isSelf, saving, error, onSubmit, on
   const catalog = usePermissionCatalog();
   const modules = useModuleRegistry();
   const copy = COPY[mode];
+  const { appSettings } = useSettings();
 
   const [access, setAccess] = useState<Record<string, string>>(() => {
     const existing = sanitizeAccess(person.access, catalog);
     if (hasAnyAccess(existing)) return { ...existing };
     // New requests start from the most common template; nothing is saved until confirmed.
-    return { ...expandPreset(ACCESS_PRESETS[0]!, catalog) };
+    const preset = ACCESS_PRESETS.find((p) => p.id === appSettings.defaultTemplate) ?? ACCESS_PRESETS[0]!;
+    return { ...expandPreset(preset, catalog) };
   });
   const [touched, setTouched] = useState(false);
 
