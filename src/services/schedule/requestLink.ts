@@ -11,6 +11,17 @@ export const SNV2_REQUEST_PAGE = 'https://hussein-zreik.github.io/SNV2/request.h
 const FORM_ID = /^[A-Za-z0-9]{20,40}$/;
 
 /** Returns the normalized link, or null if it isn't a valid SNV2 request link. */
+/** Pulls the `?f=<formId>` out of a stored SNV2 request link. */
+export function extractFormId(link: string | null): string | null {
+  if (!link) return null;
+  try {
+    const formId = new URL(link).searchParams.get('f')?.trim() ?? '';
+    return FORM_ID.test(formId) ? formId : null;
+  } catch {
+    return null;
+  }
+}
+
 export function normalizeRequestLink(input: string): string | null {
   let url: URL;
   try {

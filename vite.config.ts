@@ -14,7 +14,7 @@ import { defineConfig, loadEnv, type Plugin } from 'vite';
  * Allows only: our own files, Google/Firebase APIs, and the Firebase Auth
  * frame (needed only if Google sign-in is ever enabled).
  */
-function contentSecurityPolicy(authDomain: string | undefined): Plugin {
+function contentSecurityPolicy(authDomain: string | undefined, extraFrameDomain: string | undefined): Plugin {
   const policy = [
     "default-src 'self'",
     "script-src 'self' https://apis.google.com",
@@ -22,7 +22,7 @@ function contentSecurityPolicy(authDomain: string | undefined): Plugin {
     "img-src 'self' data: https://*.googleusercontent.com",
     "font-src 'self'",
     "connect-src 'self' https://*.googleapis.com",
-    `frame-src ${authDomain ? `https://${authDomain}` : "'none'"}`,
+    `frame-src ${[authDomain, extraFrameDomain].filter(Boolean).map((d) => `https://${d}`).join(' ') || "'none'"}`,
     "object-src 'none'",
     "base-uri 'none'",
     "form-action 'self'",
@@ -39,7 +39,7 @@ export default defineConfig(({ mode }) => {
   return {
   // "/" for Firebase Hosting; "/pacuhub/" for GitHub Pages (set by its workflow).
   base: process.env.VITE_BASE_PATH ?? '/',
-  plugins: [react(), tailwindcss(), contentSecurityPolicy(env.VITE_FIREBASE_AUTH_DOMAIN)],
+  plugins: [react(), tailwindcss(), contentSecurityPolicy(env.VITE_FIREBASE_AUTH_DOMAIN, env.VITE_SNV2_FIREBASE_AUTH_DOMAIN)],
   resolve: {
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
   },

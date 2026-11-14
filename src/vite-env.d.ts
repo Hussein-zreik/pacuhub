@@ -13,6 +13,10 @@ interface ImportMetaEnv {
   readonly VITE_IDLE_TIMEOUT_MINUTES?: string;
   readonly VITE_IDLE_WARNING_SECONDS?: string;
   readonly VITE_SNV2_URL?: string;
+  readonly VITE_SNV2_FIREBASE_API_KEY?: string;
+  readonly VITE_SNV2_FIREBASE_AUTH_DOMAIN?: string;
+  readonly VITE_SNV2_FIREBASE_PROJECT_ID?: string;
+  readonly VITE_SNV2_FIREBASE_APP_ID?: string;
 }
 
 interface ImportMeta {

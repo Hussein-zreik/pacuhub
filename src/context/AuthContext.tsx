@@ -24,6 +24,7 @@ import { toFriendlyAuthError } from '@/services/auth/authErrors';
 import { authService, isEmailDomainAllowed, toHubUser } from '@/services/auth/authService';
 import type { HubUser, SignOutReason } from '@/services/auth/types';
 import { logger } from '@/services/monitoring/logger';
+import { snv2Requests } from '@/services/snv2/requestsService';
 import { decideAccess } from '@/services/users/access';
 import { ensureUserProfile, watchUserProfile } from '@/services/users/userProfileService';
 
@@ -196,6 +197,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLastSignOutReason(reason);
       clearActivity();
       unwatch();
+      void snv2Requests.signOut(); // clear any SNV2 session on this workstation
       // Drop every cached query so no clinical data survives into the next session.
       queryClient.clear();
       try {
