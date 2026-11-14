@@ -71,3 +71,5 @@ PACU Hub has its own Firebase project, so deploying its rules can't affect any o
 - [Adding a module](docs/ADDING_A_MODULE.md): how to add a new tab without touching core code
 - [Staff access setup](docs/ACCESS_SETUP.md): security rules, first admin, per-tab access and record format
 - [Deployment](docs/DEPLOYMENT.md): publishing to pacuhub.web.app
+- [Epic integration](docs/EPIC_INTEGRATION.md): feeding audits from the EHR instead of manual entry (design + governance)
+- [Epic data request — Brief Op Notes](docs/epic-data-request-brief-op-notes.md): one-page spec to hand AUBMC's Epic team
