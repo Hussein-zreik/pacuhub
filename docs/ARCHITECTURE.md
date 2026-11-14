@@ -115,7 +115,7 @@ The UI only *shows or hides*. The rules *enforce*:
 
 ## 6. Inactivity auto-logout (`hooks/useIdleTimeout.ts`)
 
-- **Default:** 5 minutes, with a 60-second "Are you still there?" countdown. Both are configurable.
+- **Default:** 5 minutes, with a 60-second "Are you still there?" countdown. Admins change both in **Settings → Unit** (2–30 min). Staff can pick a **shorter** time for themselves in **Settings → My preferences**, never a longer one: `effectiveIdle()` takes the smaller value, and `firestore.rules` rejects a personal value above the unit maximum.
 - **Timestamp-based**, so it stays accurate even when browsers throttle timers in background tabs.
 - **Cross-tab:** last activity is shared through `localStorage`. Working in any tab keeps all tabs alive, and all tabs time out together.
 - **Stale-session check:** reopening the browser after the timeout signs out immediately instead of resuming the old session.
@@ -133,6 +133,7 @@ The UI only *shows or hides*. The rules *enforce*:
 - **Tokens** live in `styles/index.css` (`@theme`): the AUBMC white and light-blue palette, semantic text and line colors, and high-contrast status colors. To re-brand, change this one block.
 - **Logo:** `components/brand/BrandMark.tsx` is the single logo slot (the logo is pending approval).
 - **Ergonomics:** 44 px minimum touch targets, always-visible focus rings, `prefers-reduced-motion` support, and a skip link.
+- **Dark mode and larger text:** `html.dark` re-points the semantic tokens (`canvas`, `surface`, `ink`, `line`, `accent`, `chip`, …) to a dark palette; `html[data-text-size]` scales the root font size. Components use semantic tokens only, so both work everywhere without per-component code. They apply only while that person is signed in (the login screen stays standard).
 - **Responsive navigation:** full sidebar at `lg` and up (workstations), an icon rail at `md` (tablets), and a bottom tab bar on phones.
 
 ## 9. Open decisions (pending discovery answers)
@@ -157,3 +158,16 @@ Managers approve or reject staff day-off requests in **Schedule → Manager tool
 - **Consistency:** the roster is written first, then the decision is recorded. If the record can't be saved, the roster change is rolled back.
 - **Code:** pure logic in `src/services/snv2/roster.ts` (unit-tested), transaction in `rosterWrite.ts`. `rules-tests/snv2-roster.rules.test.ts` runs the real write against a verbatim copy of **SNV2's own firestore.rules** (`rules-tests/fixtures/`). Re-copy that file if SNV2's rules change.
 
+
+## 11. Settings (`features/settings`, `context/SettingsContext.tsx`)
+
+| Document | Who reads | Who writes | Holds |
+|---|---|---|---|
+| `pacuhub_settings/public` | anyone (the login screen needs it) | admins | Sign-up on/off + allowed email domains; auto sign-out maximum + warning |
+| `pacuhub_settings/app` | approved staff | admins | Shift times, Home announcement (with optional end date), default access template |
+| `pacuhub_prefs/{uid}` | that person | that person | Theme, text size, start page, personal sign-out time (≤ unit max) |
+| `pacuhub_activity/{id}` | admins | approved staff, append-only | Who did what, when: access changes, day-off decisions, unit-setting changes |
+
+- **Pure model** in `services/settings/model.ts` (Zod schemas, defaults, `effectiveIdle`, `isDayShift`, `announcementActive`, domain checks), unit-tested. Missing or malformed documents fall back to defaults, so the app works before anyone saves settings.
+- **Sign-up domain rule is enforced on the server:** creating a `pacuhub_users` record checks the email domain against `pacuhub_settings/public`. Hiding the button alone would not stop a determined user.
+- **Activity log is honest about scope:** it records actions taken through PACU Hub, stamped with the signed-in user and server time; entries can't be edited or deleted. Changes made directly in the Firebase console are not captured.

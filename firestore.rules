@@ -52,6 +52,20 @@ service cloud.firestore {
       return request.auth.token.email is string && request.auth.token.email.size() > 3;
     }
 
+    // Sign-up domain policy from unit settings (pacuhub_settings/public).
+    // No settings document or an empty list = any domain may request access.
+    function signupDomainAllowed() {
+      let path = /databases/$(database)/documents/pacuhub_settings/public;
+      let domains = exists(path) ? get(path).data.get('signup', {}).get('allowedDomains', []) : [];
+      return domains.size() == 0
+        || request.auth.token.email.lower().split('@')[1] in domains;
+    }
+
+    function unitIdleMax() {
+      let path = /databases/$(database)/documents/pacuhub_settings/public;
+      return exists(path) ? get(path).data.get('idle', {}).get('maxMinutes', 5) : 5;
+    }
+
     function profile() {
       return get(/databases/$(database)/documents/pacuhub_users/$(request.auth.uid)).data;
     }
@@ -101,6 +115,7 @@ service cloud.firestore {
       allow create: if signedIn()
         && request.auth.uid == uid
         && hasAccountEmail()
+        && signupDomainAllowed()
         && request.resource.data.keys().hasOnly(
              ['uid', 'email', 'displayName', 'photoURL', 'access', 'status', 'createdAt', 'lastSignInAt'])
         && request.resource.data.uid == uid
@@ -176,6 +191,81 @@ service cloud.firestore {
       allow read: if hasLevel('schedule', ['manage']);
       allow create, update: if hasLevel('schedule', ['manage']) && validDecision(id, request.resource.data);
       allow delete: if hasLevel('schedule', ['manage']);
+    }
+
+    // ── Unit settings ────────────────────────────────────────────────────────
+    function settingsStamp(d) {
+      return d.updatedBy == request.auth.uid
+        && d.updatedAt == request.time
+        && d.updatedByName is string && d.updatedByName.size() <= 120;
+    }
+
+    // Public: the login screen needs it before anyone signs in. Admin-only writes.
+    match /pacuhub_settings/public {
+      allow read: if true;
+      allow create, update: if isAdmin()
+        && request.resource.data.keys().hasOnly(['signup', 'idle', 'updatedAt', 'updatedBy', 'updatedByName'])
+        && request.resource.data.signup.keys().hasOnly(['enabled', 'allowedDomains'])
+        && request.resource.data.signup.enabled is bool
+        && request.resource.data.signup.allowedDomains is list
+        && request.resource.data.signup.allowedDomains.size() <= 10
+        && request.resource.data.idle.keys().hasOnly(['maxMinutes', 'warningSeconds'])
+        // Auto sign-out can never be switched off or made very long.
+        && request.resource.data.idle.maxMinutes is int
+        && request.resource.data.idle.maxMinutes >= 2 && request.resource.data.idle.maxMinutes <= 30
+        && request.resource.data.idle.warningSeconds is int
+        && request.resource.data.idle.warningSeconds >= 15 && request.resource.data.idle.warningSeconds <= 120
+        && settingsStamp(request.resource.data);
+      allow delete: if false;
+    }
+
+    // App: shifts, announcement, default template. Active staff read; admins write.
+    match /pacuhub_settings/app {
+      allow read: if isActive();
+      allow create, update: if isAdmin()
+        && request.resource.data.keys().hasOnly(['shifts', 'announcement', 'defaultTemplate', 'updatedAt', 'updatedBy', 'updatedByName'])
+        && request.resource.data.shifts.dayStart.matches('^([01][0-9]|2[0-3]):[0-5][0-9]$')
+        && request.resource.data.shifts.dayEnd.matches('^([01][0-9]|2[0-3]):[0-5][0-9]$')
+        && request.resource.data.shifts.dayStart != request.resource.data.shifts.dayEnd
+        && (request.resource.data.announcement == null
+            || (request.resource.data.announcement.text is string
+                && request.resource.data.announcement.text.size() >= 1
+                && request.resource.data.announcement.text.size() <= 280
+                && request.resource.data.announcement.tone in ['info', 'warning']))
+        && request.resource.data.defaultTemplate in ['staff-nurse', 'charge-nurse', 'educator', 'nurse-manager']
+        && settingsStamp(request.resource.data);
+      allow delete: if false;
+    }
+
+    // ── Personal preferences (each person's own) ────────────────────────────
+    match /pacuhub_prefs/{uid} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow create, update: if signedIn() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['theme', 'textSize', 'startPage', 'idleMinutes', 'updatedAt'])
+        && request.resource.data.theme in ['light', 'dark', 'system']
+        && request.resource.data.textSize in ['normal', 'large', 'xlarge']
+        && (request.resource.data.startPage == null
+            || (request.resource.data.startPage is string && request.resource.data.startPage.size() <= 40))
+        // Personal sign-out time may only be SHORTER than the unit maximum.
+        && (request.resource.data.idleMinutes == null
+            || (request.resource.data.idleMinutes is int
+                && request.resource.data.idleMinutes >= 2
+                && request.resource.data.idleMinutes <= unitIdleMax()))
+        && request.resource.data.updatedAt == request.time;
+      allow delete: if signedIn() && request.auth.uid == uid;
+    }
+
+    // ── Activity log (append-only) ───────────────────────────────────────────
+    match /pacuhub_activity/{entryId} {
+      allow read: if isAdmin();
+      allow create: if isActive()
+        && request.resource.data.keys().hasOnly(['type', 'summary', 'by', 'byName', 'at'])
+        && request.resource.data.type in ['access', 'settings', 'dayoff']
+        && request.resource.data.summary is string && request.resource.data.summary.size() <= 300
+        && request.resource.data.byName is string && request.resource.data.byName.size() <= 120
+        && request.resource.data.by == request.auth.uid
+        && request.resource.data.at == request.time;
+      allow update, delete: if false;
     }
 
     // ── Schedule settings ────────────────────────────────────────────────────

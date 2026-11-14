@@ -5,7 +5,7 @@
  */
 import { readFileSync } from 'node:fs';
 import { assertFails, assertSucceeds, initializeTestEnvironment, type RulesTestEnvironment } from '@firebase/rules-unit-testing';
-import { collection, deleteDoc, doc, getDoc, getDocs, serverTimestamp, setDoc, updateDoc, type Firestore } from 'firebase/firestore';
+import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, serverTimestamp, setDoc, updateDoc, type Firestore } from 'firebase/firestore';
 import { afterAll, beforeAll, beforeEach, describe, it } from 'vitest';
 
 const USERS = 'pacuhub_users';
@@ -341,6 +341,123 @@ describe('day-off decisions (History / Undo)', () => {
   it('must be stamped with the real decider and unknown fields are refused', async () => {
     await assertFails(setDoc(doc(as('manager'), DEC, id), decision('someone-else')));
     await assertFails(setDoc(doc(as('manager'), DEC, id), { ...decision('manager'), extra: 1 }));
+  });
+});
+
+async function seedSettings(id: string, data: Record<string, unknown>) {
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore() as unknown as Firestore, 'pacuhub_settings', id), data);
+  });
+}
+
+describe('unit settings', () => {
+  const pub = (uid: string, over: Record<string, unknown> = {}) => ({
+    signup: { enabled: true, allowedDomains: [] }, idle: { maxMinutes: 5, warningSeconds: 60 },
+    updatedAt: serverTimestamp(), updatedBy: uid, updatedByName: 'Admin', ...over,
+  });
+  const app = (uid: string, over: Record<string, unknown> = {}) => ({
+    shifts: { dayStart: '07:00', dayEnd: '19:00' }, announcement: null, defaultTemplate: 'staff-nurse',
+    updatedAt: serverTimestamp(), updatedBy: uid, updatedByName: 'Admin', ...over,
+  });
+
+  beforeEach(async () => {
+    await seed('boss', { status: 'active', access: ADMIN });
+    await seed('nurse', { status: 'active', access: { schedule: 'view' } });
+  });
+
+  it('public settings are readable by anyone (login screen) but writable only by admins', async () => {
+    await assertSucceeds(setDoc(doc(as('boss'), 'pacuhub_settings', 'public'), pub('boss')));
+    await assertSucceeds(getDoc(doc(anonymous(), 'pacuhub_settings', 'public')));
+    await assertFails(setDoc(doc(as('nurse'), 'pacuhub_settings', 'public'), pub('nurse')));
+  });
+
+  it('auto sign-out can never be switched off or set very long', async () => {
+    for (const maxMinutes of [0, 1, 31, 600]) {
+      await assertFails(setDoc(doc(as('boss'), 'pacuhub_settings', 'public'), pub('boss', { idle: { maxMinutes, warningSeconds: 60 } })));
+    }
+    await assertSucceeds(setDoc(doc(as('boss'), 'pacuhub_settings', 'public'), pub('boss', { idle: { maxMinutes: 30, warningSeconds: 60 } })));
+  });
+
+  it('settings changes must be stamped with the real admin', async () => {
+    await assertFails(setDoc(doc(as('boss'), 'pacuhub_settings', 'public'), pub('someone-else')));
+  });
+
+  it('app settings: active staff read; admins write valid values only', async () => {
+    await assertSucceeds(setDoc(doc(as('boss'), 'pacuhub_settings', 'app'), app('boss')));
+    await assertSucceeds(getDoc(doc(as('nurse'), 'pacuhub_settings', 'app')));
+    await assertFails(getDoc(doc(anonymous(), 'pacuhub_settings', 'app')));
+    await assertFails(setDoc(doc(as('nurse'), 'pacuhub_settings', 'app'), app('nurse')));
+    await assertFails(setDoc(doc(as('boss'), 'pacuhub_settings', 'app'), app('boss', { shifts: { dayStart: '25:00', dayEnd: '19:00' } })));
+    await assertFails(setDoc(doc(as('boss'), 'pacuhub_settings', 'app'), app('boss', { defaultTemplate: 'superuser' })));
+    await assertSucceeds(
+      setDoc(doc(as('boss'), 'pacuhub_settings', 'app'), app('boss', { announcement: { text: 'Fire drill Tuesday', tone: 'warning', expiresOn: null } })),
+    );
+  });
+});
+
+describe('personal preferences', () => {
+  const prefs = (over: Record<string, unknown> = {}) => ({
+    theme: 'dark', textSize: 'large', startPage: 'schedule', idleMinutes: null, updatedAt: serverTimestamp(), ...over,
+  });
+  beforeEach(() => seed('nurse', { status: 'active', access: { schedule: 'view' } }));
+
+  it('each person reads and writes only their own', async () => {
+    await assertSucceeds(setDoc(doc(as('nurse'), 'pacuhub_prefs', 'nurse'), prefs()));
+    await assertSucceeds(getDoc(doc(as('nurse'), 'pacuhub_prefs', 'nurse')));
+    await assertFails(getDoc(doc(as('other'), 'pacuhub_prefs', 'nurse')));
+    await assertFails(setDoc(doc(as('other'), 'pacuhub_prefs', 'nurse'), prefs()));
+  });
+
+  it('a personal sign-out time may only be shorter than the unit maximum', async () => {
+    // no unit settings yet → default maximum is 5
+    await assertSucceeds(setDoc(doc(as('nurse'), 'pacuhub_prefs', 'nurse'), prefs({ idleMinutes: 5 })));
+    await assertFails(setDoc(doc(as('nurse'), 'pacuhub_prefs', 'nurse'), prefs({ idleMinutes: 6 })));
+    await seedSettings('public', { signup: { enabled: true, allowedDomains: [] }, idle: { maxMinutes: 10, warningSeconds: 60 } });
+    await assertSucceeds(setDoc(doc(as('nurse'), 'pacuhub_prefs', 'nurse'), prefs({ idleMinutes: 10 })));
+    await assertFails(setDoc(doc(as('nurse'), 'pacuhub_prefs', 'nurse'), prefs({ idleMinutes: 11 })));
+    await assertFails(setDoc(doc(as('nurse'), 'pacuhub_prefs', 'nurse'), prefs({ idleMinutes: 1 })));
+  });
+
+  it('rejects unknown values', async () => {
+    await assertFails(setDoc(doc(as('nurse'), 'pacuhub_prefs', 'nurse'), prefs({ theme: 'neon' })));
+  });
+});
+
+describe('activity log (append-only)', () => {
+  const entry = (by: string) => ({ type: 'access', summary: 'Gave Lina Schedule', by, byName: 'Admin', at: serverTimestamp() });
+  beforeEach(async () => {
+    await seed('boss', { status: 'active', access: ADMIN });
+    await seed('manager', { status: 'active', access: { schedule: 'manage' } });
+  });
+
+  it('active staff can append their own entries; only admins can read', async () => {
+    await assertSucceeds(addDoc(collection(as('manager'), 'pacuhub_activity'), entry('manager')));
+    await assertFails(addDoc(collection(as('manager'), 'pacuhub_activity'), entry('boss'))); // can't impersonate
+    await assertFails(getDocs(collection(as('manager'), 'pacuhub_activity')));
+    await assertSucceeds(getDocs(collection(as('boss'), 'pacuhub_activity')));
+  });
+
+  it('entries can never be edited or deleted — not even by an admin', async () => {
+    const ref = await addDoc(collection(as('boss'), 'pacuhub_activity'), entry('boss'));
+    await assertFails(updateDoc(doc(as('boss'), 'pacuhub_activity', ref.id), { summary: 'edited' }));
+    await assertFails(deleteDoc(doc(as('boss'), 'pacuhub_activity', ref.id)));
+  });
+
+  it('pending (unapproved) users cannot write to the log', async () => {
+    await seed('pend', { status: 'pending' });
+    await assertFails(addDoc(collection(as('pend'), 'pacuhub_activity'), entry('pend')));
+  });
+});
+
+describe('sign-up domain restriction', () => {
+  it('when a domain list is set, only those emails can create an access request', async () => {
+    await seedSettings('public', { signup: { enabled: true, allowedDomains: ['aub.edu.lb'] }, idle: { maxMinutes: 5, warningSeconds: 60 } });
+    await assertFails(setDoc(doc(as('g1', 'g1@gmail.com'), USERS, 'g1'), pendingRequest('g1', 'g1@gmail.com')));
+    await assertSucceeds(setDoc(doc(as('a1', 'a1@AUB.edu.lb'), USERS, 'a1'), pendingRequest('a1', 'a1@AUB.edu.lb')));
+  });
+
+  it('with no list set, any email can request access', async () => {
+    await assertSucceeds(setDoc(doc(as('g2', 'g2@gmail.com'), USERS, 'g2'), pendingRequest('g2', 'g2@gmail.com')));
   });
 });
 

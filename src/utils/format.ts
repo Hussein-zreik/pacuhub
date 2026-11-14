@@ -16,3 +16,9 @@ export function formatDateTime(date: Date | null | undefined): string {
   if (!date) return '—';
   return `${formatDate(date)}, ${date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`;
 }
+
+/** Local calendar day as YYYY-MM-DD. */
+export function todayIso(now: Date = new Date()): string {
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${now.getFullYear()}-${p(now.getMonth() + 1)}-${p(now.getDate())}`;
+}

@@ -10,6 +10,7 @@ import StaffAccessModule from './StaffAccessModule';
 
 const service = vi.hoisted(() => ({ listUserProfiles: vi.fn(), updateUserAccess: vi.fn() }));
 vi.mock('@/services/users/userProfileService', () => service);
+vi.mock('@/services/activity/activityLog', () => ({ logActivity: vi.fn(async () => {}) }));
 
 const ADMIN = { 'staff-access': 'admin' };
 const profile = (over: Partial<UserProfile>): UserProfile => ({

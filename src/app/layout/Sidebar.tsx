@@ -7,13 +7,13 @@ import { NavLink } from 'react-router';
 import { BrandMark } from '@/components/brand/BrandMark';
 import { Badge } from '@/components/ui';
 import { APP } from '@/config/app';
-import { env } from '@/config/env';
+import { useSettings } from '@/context/SettingsContext';
 import { cn } from '@/utils/cn';
 import { useNavItems } from './navItems';
 
 export function Sidebar() {
   const items = useNavItems();
-  const idleMinutes = Math.round(env.idleTimeoutMs / 60_000);
+  const idleMinutes = useSettings().idle.minutes;
 
   return (
     <aside className="sticky top-0 hidden h-dvh w-24 shrink-0 flex-col border-r border-line bg-surface md:flex lg:w-64">
@@ -31,7 +31,7 @@ export function Sidebar() {
                 className={({ isActive }) =>
                   cn(
                     'group relative flex min-h-12 flex-col items-center justify-center gap-1 rounded-lg px-2 py-2 text-xs font-semibold transition-colors lg:flex-row lg:justify-start lg:gap-3 lg:px-3 lg:text-sm',
-                    isActive ? 'bg-brand-50 text-brand-700' : 'text-ink-muted hover:bg-brand-50/60 hover:text-ink',
+                    isActive ? 'bg-brand-50 text-accent' : 'text-ink-muted hover:bg-brand-50/60 hover:text-ink',
                   )
                 }
               >

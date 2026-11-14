@@ -19,7 +19,7 @@ export default tseslint.config(
         'warn',
         {
           allowConstantExport: true,
-          allowExportNames: ['buttonVariants', 'AuthContext', 'useAuth', 'usePermissions', 'useModuleRegistry', 'useAccessibleModules', 'usePermissionCatalog'],
+          allowExportNames: ['buttonVariants', 'AuthContext', 'useAuth', 'usePermissions', 'useModuleRegistry', 'useAccessibleModules', 'usePermissionCatalog', 'useSettings'],
         },
       ],
       '@typescript-eslint/consistent-type-imports': 'error',

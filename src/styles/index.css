@@ -29,6 +29,9 @@
   --color-ink: #0e1e33; /* primary text */
   --color-ink-muted: #4b5e74; /* secondary text */
   --color-ink-subtle: #73859a; /* hints, placeholders */
+  --color-accent: #1a5a94; /* links / emphasised brand text (readable in both themes) */
+  --color-accent-strong: #194c7a;
+  --color-chip: #eef2f6; /* neutral badge background */
 
   /* High-contrast clinical status colors */
   --color-success-50: #ecf8f1;
@@ -73,3 +76,51 @@
     }
   }
 }
+
+/*
+ * Personal display preferences (Settings → Personal), applied to <html> only
+ * while that person is signed in.
+ */
+html[data-text-size='large'] {
+  font-size: 112.5%;
+}
+html[data-text-size='xlarge'] {
+  font-size: 125%;
+}
+
+/*
+ * Dark theme — easier on the eyes on night shifts. Only the semantic tokens
+ * change, so every component follows. brand-400…900 stay as-is (solid buttons
+ * keep their contrast with white text); light tints become deep tints.
+ */
+html.dark {
+  color-scheme: dark;
+  --color-canvas: #0b1420;
+  --color-surface: #111c2a;
+  --color-line: #23344a;
+  --color-ink: #e5edf6;
+  --color-ink-muted: #a7b6c8;
+  --color-ink-subtle: #7f92a8;
+  --color-accent: #8cc2ec;
+  --color-accent-strong: #bcdcf5;
+  --color-chip: #1d2b3c;
+
+  --color-brand-50: #11253a;
+  --color-brand-100: #16324e;
+  --color-brand-200: #1e4466;
+  --color-brand-300: #2b5f8c;
+
+  --color-success-50: #0f2a1f;
+  --color-success-600: #2fae73;
+  --color-success-700: #74d6a8;
+  --color-warning-50: #2c2110;
+  --color-warning-600: #d98a1f;
+  --color-warning-700: #f2c27a;
+  --color-danger-50: #321619;
+  --color-danger-600: #e05656;
+  --color-danger-700: #f4a6a6;
+
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.35), 0 1px 3px rgb(0 0 0 / 0.3);
+  --shadow-raised: 0 6px 16px rgb(0 0 0 / 0.45), 0 2px 4px rgb(0 0 0 / 0.3);
+}
+

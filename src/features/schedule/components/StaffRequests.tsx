@@ -129,7 +129,7 @@ function PendingItem({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <p className="font-semibold text-ink">{request.name || 'Unknown'}</p>
-          <p className="mt-0.5 text-sm font-medium text-brand-700">{formatDates(request.dates) || 'No valid dates'}</p>
+          <p className="mt-0.5 text-sm font-medium text-accent">{formatDates(request.dates) || 'No valid dates'}</p>
           {request.reason && <p className="mt-1 text-sm text-ink-muted">“{request.reason}”</p>}
           {request.createdAt && <p className="mt-1 text-xs text-ink-subtle">Sent {formatWhen(request.createdAt)}</p>}
         </div>
@@ -163,7 +163,7 @@ function HistoryItem({ decision, onUndo }: { decision: DayOffDecision; onUndo: (
           {decision.name || 'Unknown'}
           <Badge tone={approved ? 'success' : 'danger'}>{approved ? 'Approved' : 'Rejected'}</Badge>
         </p>
-        <p className="mt-0.5 text-sm font-medium text-brand-700">{formatDates(decision.dates)}</p>
+        <p className="mt-0.5 text-sm font-medium text-accent">{formatDates(decision.dates)}</p>
         {decision.reason && <p className="mt-1 text-sm text-ink-muted">“{decision.reason}”</p>}
         {approved && decision.applied.length > 0 && (
           <p className="mt-1 text-xs text-success-700">Added to roster as Req off: {formatDates(decision.applied)}</p>
@@ -290,7 +290,7 @@ export function StaffRequests({ formId }: { formId: string | null }) {
                   <p className="flex flex-wrap items-center gap-2 font-semibold text-ink">
                     {request.name || 'Unknown'} <Badge>Handled in SNV2</Badge>
                   </p>
-                  <p className="mt-0.5 text-sm font-medium text-brand-700">{formatDates(request.dates)}</p>
+                  <p className="mt-0.5 text-sm font-medium text-accent">{formatDates(request.dates)}</p>
                 </div>
                 <Button size="sm" variant="secondary" className="shrink-0" onClick={() => void snv2.reopen(request.id)}>
                   <RotateCcw /> Reopen

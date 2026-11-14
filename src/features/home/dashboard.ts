@@ -2,15 +2,15 @@
  * Pure helpers for the Home dashboard (no React, no Firebase) so they're easy
  * to test.
  */
-export type Shift = { id: 'day' | 'night'; label: string };
+import { isDayShift, type ShiftTimes } from '@/services/settings/model';
 
-/**
- * PACU runs two 12-hour shifts: Day 07:00–19:00, Night 19:00–07:00.
- * `hour` is the local hour (0–23).
- */
-export function currentShift(date: Date): Shift {
-  const hour = date.getHours();
-  return hour >= 7 && hour < 19 ? { id: 'day', label: 'Day shift' } : { id: 'night', label: 'Night shift' };
+export type Shift = { id: 'day' | 'night'; label: string; hours: string };
+
+/** Two shifts set in unit settings: Day [dayStart, dayEnd), Night = the rest. */
+export function currentShift(date: Date, shifts: ShiftTimes): Shift {
+  return isDayShift(date, shifts)
+    ? { id: 'day', label: 'Day shift', hours: `${shifts.dayStart} – ${shifts.dayEnd}` }
+    : { id: 'night', label: 'Night shift', hours: `${shifts.dayEnd} – ${shifts.dayStart}` };
 }
 
 export function greeting(hour: number): string {

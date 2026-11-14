@@ -21,6 +21,7 @@ const svc = vi.hoisted(() => ({
   },
 }));
 vi.mock('@/services/snv2/requestsService', () => svc);
+vi.mock('@/services/activity/activityLog', () => ({ logActivity: vi.fn(async () => {}) }));
 
 const dec = vi.hoisted(() => ({
   watchDecisions: vi.fn(),

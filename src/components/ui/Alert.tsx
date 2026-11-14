@@ -6,7 +6,7 @@ import { cn } from '@/utils/cn';
 const alertVariants = cva('flex gap-3 rounded-lg border px-4 py-3 text-sm', {
   variants: {
     tone: {
-      info: 'border-brand-200 bg-brand-50 text-brand-900',
+      info: 'border-brand-200 bg-brand-50 text-accent-strong',
       success: 'border-success-600/25 bg-success-50 text-success-700',
       warning: 'border-warning-600/25 bg-warning-50 text-warning-700',
       danger: 'border-danger-600/25 bg-danger-50 text-danger-700',

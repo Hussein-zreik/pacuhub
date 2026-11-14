@@ -2,8 +2,8 @@
 import { LogOut, ShieldCheck } from 'lucide-react';
 import { useCallback } from 'react';
 import { Button, Dialog } from '@/components/ui';
-import { env } from '@/config/env';
 import { useAuth } from '@/context/AuthContext';
+import { useSettings } from '@/context/SettingsContext';
 import { useIdleTimeout } from '@/hooks/useIdleTimeout';
 
 const formatCountdown = (ms: number) => {
@@ -13,13 +13,14 @@ const formatCountdown = (ms: number) => {
 
 export function IdleSessionGuard() {
   const { state, signOut } = useAuth();
+  const { idle } = useSettings();
   const hasSession = state.status !== 'initializing' && state.status !== 'signedOut';
 
   const onTimeout = useCallback(() => void signOut('idle'), [signOut]);
   const { isWarning, remainingMs, stayActive } = useIdleTimeout({
     enabled: hasSession,
-    timeoutMs: env.idleTimeoutMs,
-    warningMs: env.idleWarningMs,
+    timeoutMs: idle.timeoutMs,
+    warningMs: idle.warningMs,
     onTimeout,
   });
 
@@ -40,7 +41,7 @@ export function IdleSessionGuard() {
         </>
       }
     >
-      <p className="text-center text-4xl font-bold tabular-nums text-brand-700" aria-live="polite">
+      <p className="text-center text-4xl font-bold tabular-nums text-accent" aria-live="polite">
         {formatCountdown(remainingMs)}
       </p>
     </Dialog>

@@ -8,14 +8,18 @@
  */
 import { Navigate, Route, Routes } from 'react-router';
 import { useAccessibleModules, useModuleRegistry } from '@/core/modules/ModuleRegistryContext';
+import { useSettings } from '@/context/SettingsContext';
 import { LoginPage } from '@/features/auth/LoginPage';
 import { ProtectedLayout, PublicOnlyRoute } from '@/app/guards/ProtectedLayout';
 import { ModuleHost } from './ModuleHost';
 import { NotFoundPage } from './NotFoundPage';
 
 function DefaultRedirect() {
-  const first = useAccessibleModules().find((module) => module.showInNav);
-  return first ? <Navigate to={`/${first.path}`} replace /> : <NotFoundPage />;
+  const modules = useAccessibleModules().filter((module) => module.showInNav);
+  const { prefs } = useSettings();
+  // Personal start page, if the person still has access to it; otherwise the first tab.
+  const target = modules.find((m) => m.id === prefs.startPage) ?? modules[0];
+  return target ? <Navigate to={`/${target.path}`} replace /> : <NotFoundPage />;
 }
 
 export function AppRouter() {

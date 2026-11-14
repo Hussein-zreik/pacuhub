@@ -7,7 +7,10 @@ import { Inbox, RefreshCw, Search, UserCheck, UserX } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Alert, Button, Card, Dialog, EmptyState, Input, PageHeader, Skeleton } from '@/components/ui';
 import { useAuth } from '@/context/AuthContext';
+import { accessLabel } from '@/config/accessPresets';
+import { usePermissionCatalog } from '@/core/modules/ModuleRegistryContext';
 import { isAdmin } from '@/core/permissions/catalog';
+import { logActivity } from '@/services/activity/activityLog';
 import type { AccessChange, UserProfile } from '@/services/users/types';
 import { cn } from '@/utils/cn';
 import { AccessEditor, type AccessEditorMode } from './components/AccessEditor';
@@ -46,7 +49,26 @@ export default function StaffAccessModule() {
     setPending(null);
     update.reset();
   };
-  const save = (person: UserProfile, change: AccessChange) => update.mutate({ uid: person.uid, change }, { onSuccess: close });
+  const catalog = usePermissionCatalog();
+  const actor = state.status === 'authorized' ? { uid: state.user.uid, name: state.user.displayName || state.user.email || 'Unknown' } : null;
+  const describe = (person: UserProfile, change: AccessChange) => {
+    const who = person.displayName || person.email || 'a staff member';
+    const label = accessLabel(change.access, catalog);
+    if (change.status === 'disabled') return person.status === 'pending' ? `Declined access request from ${who}` : `Deactivated ${who}`;
+    if (person.status === 'pending') return `Approved ${who} — ${label}`;
+    if (person.status === 'disabled') return `Reactivated ${who} — ${label}`;
+    return `Changed ${who}'s access — ${label}`;
+  };
+  const save = (person: UserProfile, change: AccessChange) =>
+    update.mutate(
+      { uid: person.uid, change },
+      {
+        onSuccess: () => {
+          if (actor) void logActivity('access', describe(person, change), actor);
+          close();
+        },
+      },
+    );
 
   return (
     <>
