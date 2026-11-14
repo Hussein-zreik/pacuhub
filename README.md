@@ -5,6 +5,7 @@ The digital workspace for the **AUBMC Post-Anesthesia Care Unit**: one place for
 | Module | Status |
 |---|---|
 | Home | ✅ Live |
+| Bay Board | ✅ Live: real-time PACU bays (Epic terms), timers with amber/red alerts, delay reasons, capacity signal, today's numbers. No patient data |
 | Schedule (SNV2) | ✅ Live: **published roster** (locked SNV2 fortnights, own row + My shifts), "Request a day off", **approve / reject day-off requests in-app** with history and undo |
 | PACU Forms | 🛠 Shell in place; forms pending definitions |
 | Unit Audits | 🛠 Shell in place; audit tools pending definitions |

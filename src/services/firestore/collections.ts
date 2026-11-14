@@ -11,6 +11,9 @@ export const COLLECTIONS = {
   settings: 'pacuhub_settings',
   dayOffDecisions: 'pacuhub_dayoff_decisions',
   rosters: 'pacuhub_rosters',
+  bays: 'pacuhub_bays',
+  bayboard: 'pacuhub_bayboard',
+  bayEvents: 'pacuhub_bay_events',
   prefs: 'pacuhub_prefs',
   activity: 'pacuhub_activity',
 } as const;

@@ -265,6 +265,97 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // ── Live bay board ───────────────────────────────────────────────────────
+    // NO patient data: status, assigned nurse, fixed tags, fixed delay reason
+    // and times only. There is no free-text field. Levels: view · update · manage.
+    function bayViewer() {
+      return hasLevel('bayboard', ['view', 'update', 'manage']);
+    }
+
+    // A time field may stay as it was, be cleared, or be set to server time.
+    function bayStampOk(f) {
+      let v = request.resource.data.get(f, null);
+      return v == null || v == request.time || (resource != null && v == resource.data.get(f, null));
+    }
+
+    function validBay(d) {
+      return d.keys().hasOnly(['name', 'order', 'status', 'nurse', 'tags', 'delayReason', 'inRecoveryAt', 'careCompleteAt',
+                               'updatedAt', 'updatedBy', 'updatedByName'])
+        && d.name is string && d.name.size() >= 1 && d.name.size() <= 24
+        && d.order is int && d.order >= 0 && d.order <= 999
+        && d.status in ['empty', 'in-recovery', 'care-complete', 'closed']
+        && (d.nurse == null
+            || (d.nurse is map && d.nurse.keys().hasOnly(['uid', 'name'])
+                && d.nurse.name is string && d.nurse.name.size() >= 1 && d.nurse.name.size() <= 80
+                && (d.nurse.get('uid', null) == null || d.nurse.uid is string)))
+        && d.tags is list && d.tags.size() <= 4 && d.tags.hasOnly(['isolation', 'pediatric', 'oxygen', 'fall-risk'])
+        && (d.delayReason == null || d.delayReason in ['awaiting-bed', 'awaiting-transport', 'awaiting-physician', 'other'])
+        // Only an occupied bay carries a nurse, tags or a delay; a delay only after care complete.
+        && (d.status in ['in-recovery', 'care-complete'] || (d.nurse == null && d.tags.size() == 0 && d.delayReason == null))
+        && (d.status == 'care-complete' || d.delayReason == null)
+        && bayStampOk('inRecoveryAt') && bayStampOk('careCompleteAt')
+        && d.updatedBy == request.auth.uid
+        && d.updatedAt == request.time
+        && d.updatedByName is string && d.updatedByName.size() <= 120;
+    }
+
+    match /pacuhub_bays/{bayId} {
+      allow read: if bayViewer();
+      allow create: if hasLevel('bayboard', ['manage'])
+        && validBay(request.resource.data)
+        && request.resource.data.status == 'empty';
+      // Update level: patient flow only — not names, order, or closing/opening bays.
+      allow update: if validBay(request.resource.data)
+        && (hasLevel('bayboard', ['manage'])
+            || (hasLevel('bayboard', ['update'])
+                && request.resource.data.name == resource.data.name
+                && request.resource.data.order == resource.data.order
+                && resource.data.status != 'closed'
+                && request.resource.data.status != 'closed'));
+      allow delete: if hasLevel('bayboard', ['manage']) && resource.data.status in ['empty', 'closed'];
+    }
+
+    match /pacuhub_bayboard/config {
+      allow read: if bayViewer();
+      allow create, update: if hasLevel('bayboard', ['manage'])
+        && request.resource.data.keys().hasOnly(['thresholds', 'capacity', 'updatedAt', 'updatedBy', 'updatedByName'])
+        && request.resource.data.thresholds.keys().hasOnly(['recovery', 'complete'])
+        && validThreshold(request.resource.data.thresholds.recovery)
+        && validThreshold(request.resource.data.thresholds.complete)
+        && request.resource.data.capacity.keys().hasOnly(['level', 'note'])
+        && request.resource.data.capacity.level in ['green', 'amber', 'red']
+        && request.resource.data.capacity.note is string && request.resource.data.capacity.note.size() <= 120
+        && settingsStamp(request.resource.data);
+      allow delete: if false;
+    }
+
+    function validThreshold(t) {
+      return t.keys().hasOnly(['amber', 'red'])
+        && t.amber is int && t.red is int
+        && t.amber >= 5 && t.red <= 600 && t.amber < t.red;
+    }
+
+    function optionalMinutes(v) {
+      return v == null || (v is int && v >= 0 && v <= 2880);
+    }
+
+    // Flow events for today's statistics: append-only, no patient data.
+    match /pacuhub_bay_events/{eventId} {
+      allow read: if bayViewer();
+      allow create: if hasLevel('bayboard', ['update', 'manage'])
+        && request.resource.data.keys().hasOnly(['bayId', 'bayName', 'action', 'delayReason', 'recoveryMin', 'waitMin', 'by', 'at'])
+        && request.resource.data.bayId is string && request.resource.data.bayId.size() <= 40
+        && request.resource.data.bayName is string && request.resource.data.bayName.size() <= 24
+        && request.resource.data.action in ['in', 'complete', 'out']
+        && (request.resource.data.delayReason == null
+            || request.resource.data.delayReason in ['awaiting-bed', 'awaiting-transport', 'awaiting-physician', 'other'])
+        && optionalMinutes(request.resource.data.recoveryMin)
+        && optionalMinutes(request.resource.data.waitMin)
+        && request.resource.data.by == request.auth.uid
+        && request.resource.data.at == request.time;
+      allow update, delete: if false;
+    }
+
     // ── Personal preferences (each person's own) ────────────────────────────
     match /pacuhub_prefs/{uid} {
       allow read: if signedIn() && request.auth.uid == uid;
