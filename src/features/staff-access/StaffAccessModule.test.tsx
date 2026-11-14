@@ -70,6 +70,7 @@ describe('Staff Access — per-person, per-tab access', () => {
     // Starts from the Staff Nurse template; strip it back to one audit type.
     await user.click(pick(dialog, /access to schedule/i, /no access/i));
     await user.click(pick(dialog, /access to pacu forms/i, /no access/i));
+    await user.click(pick(dialog, /access to bay board/i, /no access/i));
     await user.click(pick(dialog, /infection control/i, /enter & view/i));
     expect(within(dialog).getByText('Custom')).toBeInTheDocument();
     await user.click(within(dialog).getByRole('button', { name: /approve access/i }));
@@ -82,6 +83,7 @@ describe('Staff Access — per-person, per-tab access', () => {
     renderModule(STAFF);
     const dialog = await openReview(user);
     await user.click(pick(dialog, /access to pacu forms/i, /no access/i));
+    await user.click(pick(dialog, /access to bay board/i, /no access/i));
     await user.click(within(dialog).getByRole('button', { name: /approve access/i }));
     expect(service.updateUserAccess).toHaveBeenCalledWith('p1', { access: { schedule: 'view' }, status: 'active' }, 'admin-1');
   });
@@ -91,6 +93,7 @@ describe('Staff Access — per-person, per-tab access', () => {
     renderModule(STAFF);
     const dialog = await openReview(user);
     await user.click(pick(dialog, /access to pacu forms/i, /no access/i));
+    await user.click(pick(dialog, /access to bay board/i, /no access/i));
     await user.selectOptions(within(dialog).getByRole('combobox', { name: /name on the published roster/i }), 'rn7');
     await user.click(within(dialog).getByRole('button', { name: /approve access/i }));
     expect(service.updateUserAccess).toHaveBeenCalledWith('p1', { access: { schedule: 'view' }, status: 'active', rosterId: 'rn7' }, 'admin-1');
@@ -104,6 +107,7 @@ describe('Staff Access — per-person, per-tab access', () => {
     await user.click(within(dialog).getByRole('button', { name: /approve access/i }));
     expect(service.updateUserAccess.mock.calls[0]?.[1]).toEqual({
       access: {
+        bayboard: 'view',
         schedule: 'view',
         forms: 'fill',
         'audits:brief-op-notes': 'full',
@@ -132,6 +136,7 @@ describe('Staff Access — per-person, per-tab access', () => {
     const dialog = await openReview(user);
     await user.click(pick(dialog, /access to schedule/i, /no access/i));
     await user.click(pick(dialog, /access to pacu forms/i, /no access/i));
+    await user.click(pick(dialog, /access to bay board/i, /no access/i));
     await user.click(within(dialog).getByRole('button', { name: /approve access/i }));
     expect(within(dialog).getByText(/give access to at least one tab/i)).toBeInTheDocument();
     expect(service.updateUserAccess).not.toHaveBeenCalled();

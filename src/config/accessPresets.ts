@@ -22,20 +22,20 @@ export const ACCESS_PRESETS: readonly AccessPreset[] = [
   {
     id: 'staff-nurse',
     label: 'Staff Nurse',
-    description: 'Schedule and PACU forms.',
-    grants: { schedule: 'view', forms: 'fill' },
+    description: 'Bay board, schedule and PACU forms.',
+    grants: { bayboard: 'update', schedule: 'view', forms: 'fill' },
   },
   {
     id: 'charge-nurse',
     label: 'Charge Nurse',
-    description: 'Schedule, forms with review and co-sign.',
-    grants: { schedule: 'view', forms: 'review' },
+    description: 'Bay board set-up, schedule, forms with review and co-sign.',
+    grants: { bayboard: 'manage', schedule: 'view', forms: 'review' },
   },
   {
     id: 'educator',
     label: 'Educator / Auditor',
     description: 'Forms plus full access to every audit type.',
-    grants: { schedule: 'view', forms: 'fill', 'audits:*': 'max' },
+    grants: { bayboard: 'view', schedule: 'view', forms: 'fill', 'audits:*': 'max' },
   },
   {
     id: 'nurse-manager',

@@ -140,6 +140,7 @@ The UI only *shows or hides*. The rules *enforce*:
 
 | Area | Current default | Waiting on |
 |---|---|---|
+| Bay board | ✅ Live (§13) | — |
 | Access model | ✅ Decided: per-person, per-tab levels, per-audit-type for Audits, templates, 2 admins | — |
 | Access storage | ✅ Decided: Firestore `pacuhub_users/{uid}` + Staff Access module | — |
 | SNV2 | ✅ Staff: "Request a day off" and the **published roster** (see §12). Managers: **approve / reject day-off requests in-app** (§10) | — |
@@ -184,3 +185,17 @@ Managers approve or reject staff day-off requests in **Schedule → Manager tool
 - **Account ↔ roster name:** an admin links each account to its SNV2 name in **Staff Access** (`pacuhub_users.rosterId`). Only admins can set it, so nobody can attach themselves to someone else's row.
 - **Rules:** read with Schedule (view/manage) or admin; write/delete with Schedule manage only.
 - **Limit:** staff see the latest copy that was synced. If you lock a fortnight while PACU Hub isn't open with SNV2 connected, it appears the next time you open the Schedule tab.
+
+## 13. Live bay board (`features/bayboard`, `services/bayboard`)
+
+Real-time PACU bays on every screen, using **Epic snapboard terms** so nurses use the same words:
+
+**Empty → In Recovery → Recovery Care Complete → Out of Recovery** (the bay is empty again at once). **Closed** marks a bay out of service.
+
+- **No patient data, by design.** A bay holds only its status, the assigned nurse, fixed quick tags (Isolation, Pediatric, On O2, Fall risk), a fixed delay reason (Awaiting bed / transport / physician / Other) and times. There is no free-text field on a bay. The rules reject any other field, so nothing like a patient name can be stored.
+- **Timers and alerts:** the clock measures time in recovery, then time waiting after Recovery Care Complete. A card turns amber, then red, past manager-set times (defaults 60/120 min in recovery, 30/60 min waiting).
+- **Safe concurrent updates:** every change is a Firestore transaction that re-reads the bay (`runBayAction`), so two nurses tapping the same bay can't overwrite each other. Pure flow logic lives in `services/bayboard/model.ts` and is unit-tested.
+- **Today's numbers:** each flow step appends an event to `pacuhub_bay_events` (bay, step, minutes, delay reason). There is no patient data and events can't be edited or deleted. The board shows how many patients were placed in recovery and taken out today, average recovery time, average wait and the most common delay. This is the foundation for a future KPI dashboard.
+- **Access (`bayboard`):** View · Update bays (patient flow, nurse, tags, delay) · Manage (also set up, rename and reorder bays, close and open bays, alert times, and the unit capacity signal Green/Amber/Red with a short note). Templates: Staff Nurse = Update, Charge Nurse = Manage, Educator = View, Nurse Manager = Manage.
+- **Assigned nurse:** "me", plus RNs working today on the published roster (when the person can see the roster).
+- **Full screen** mode for a wall monitor.

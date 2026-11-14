@@ -73,6 +73,6 @@ describe('definitionsFromGlob', () => {
 describe('discovered feature modules', () => {
   it('registers every real feature module without validation errors', async () => {
     const { moduleRegistry } = await import('./discovered');
-    expect(moduleRegistry.map((m) => m.id)).toEqual(['home', 'schedule', 'forms', 'audits', 'staff-access', 'settings']);
+    expect(moduleRegistry.map((m) => m.id)).toEqual(['home', 'bayboard', 'schedule', 'forms', 'audits', 'staff-access', 'settings']);
   });
 });

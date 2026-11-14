@@ -529,6 +529,104 @@ describe('published roster', () => {
   });
 });
 
+describe('live bay board (no patient data)', () => {
+  const BAYS = 'pacuhub_bays';
+  const base = (by: string, over: Record<string, unknown> = {}) => ({
+    name: 'Bay 1', order: 0, status: 'empty', nurse: null, tags: [], delayReason: null, inRecoveryAt: null, careCompleteAt: null,
+    updatedAt: serverTimestamp(), updatedBy: by, updatedByName: by, ...over,
+  });
+  const seedBay = (data: Record<string, unknown>) =>
+    env.withSecurityRulesDisabled((ctx) => setDoc(doc(ctx.firestore() as unknown as Firestore, BAYS, 'b1'), data));
+  beforeEach(async () => {
+    await seed('charge', { status: 'active', access: { bayboard: 'manage' } });
+    await seed('rn', { status: 'active', access: { bayboard: 'update' } });
+    await seed('viewer', { status: 'active', access: { bayboard: 'view' } });
+    await seed('other', { status: 'active', access: { schedule: 'view' } });
+  });
+
+  it('a manager can add a bay; a nurse with Update cannot', async () => {
+    await assertSucceeds(setDoc(doc(as('charge'), BAYS, 'b1'), base('charge')));
+    await assertFails(setDoc(doc(as('rn'), BAYS, 'b2'), base('rn')));
+  });
+
+  it('viewers can read the board; people without Bay Board access cannot', async () => {
+    await seedBay(base('charge'));
+    await assertSucceeds(getDoc(doc(as('viewer'), BAYS, 'b1')));
+    await assertFails(getDoc(doc(as('other'), BAYS, 'b1')));
+  });
+
+  it('a nurse can place a patient in recovery with a nurse and tags', async () => {
+    await seedBay(base('charge'));
+    await assertSucceeds(updateDoc(doc(as('rn'), BAYS, 'b1'), {
+      status: 'in-recovery', nurse: { uid: 'rn', name: 'Lina' }, tags: ['oxygen'], inRecoveryAt: serverTimestamp(),
+      updatedAt: serverTimestamp(), updatedBy: 'rn', updatedByName: 'Lina',
+    }));
+  });
+
+  it('a viewer cannot change a bay', async () => {
+    await seedBay(base('charge'));
+    await assertFails(updateDoc(doc(as('viewer'), BAYS, 'b1'), { status: 'in-recovery', updatedAt: serverTimestamp(), updatedBy: 'viewer', updatedByName: 'v' }));
+  });
+
+  it('rejects any extra field (nowhere to type patient details)', async () => {
+    await seedBay(base('charge'));
+    await assertFails(updateDoc(doc(as('rn'), BAYS, 'b1'), {
+      status: 'in-recovery', patientName: 'John Doe', inRecoveryAt: serverTimestamp(),
+      updatedAt: serverTimestamp(), updatedBy: 'rn', updatedByName: 'Lina',
+    }));
+    await assertFails(updateDoc(doc(as('rn'), BAYS, 'b1'), {
+      status: 'in-recovery', tags: ['John Doe MRN 123'], updatedAt: serverTimestamp(), updatedBy: 'rn', updatedByName: 'Lina',
+    }));
+  });
+
+  it('a delay reason is only allowed after Recovery Care Complete', async () => {
+    await seedBay(base('charge', { status: 'in-recovery' }));
+    await assertFails(updateDoc(doc(as('rn'), BAYS, 'b1'), { delayReason: 'awaiting-bed', updatedAt: serverTimestamp(), updatedBy: 'rn', updatedByName: 'Lina' }));
+    await seedBay(base('charge', { status: 'care-complete' }));
+    await assertSucceeds(updateDoc(doc(as('rn'), BAYS, 'b1'), { delayReason: 'awaiting-bed', updatedAt: serverTimestamp(), updatedBy: 'rn', updatedByName: 'Lina' }));
+  });
+
+  it('times cannot be back-dated', async () => {
+    await seedBay(base('charge'));
+    await assertFails(updateDoc(doc(as('rn'), BAYS, 'b1'), {
+      status: 'in-recovery', inRecoveryAt: new Date('2026-01-01'), updatedAt: serverTimestamp(), updatedBy: 'rn', updatedByName: 'Lina',
+    }));
+  });
+
+  it('only a manager can close or rename a bay', async () => {
+    await seedBay(base('charge'));
+    const close = { status: 'closed', updatedAt: serverTimestamp(), updatedByName: 'x' };
+    await assertFails(updateDoc(doc(as('rn'), BAYS, 'b1'), { ...close, updatedBy: 'rn' }));
+    await assertFails(updateDoc(doc(as('rn'), BAYS, 'b1'), { name: 'Bay 9', updatedAt: serverTimestamp(), updatedBy: 'rn', updatedByName: 'x' }));
+    await assertSucceeds(updateDoc(doc(as('charge'), BAYS, 'b1'), { ...close, updatedBy: 'charge' }));
+  });
+
+  it('an occupied bay cannot be deleted', async () => {
+    await seedBay(base('charge', { status: 'in-recovery' }));
+    await assertFails(deleteDoc(doc(as('charge'), BAYS, 'b1')));
+    await seedBay(base('charge'));
+    await assertSucceeds(deleteDoc(doc(as('charge'), BAYS, 'b1')));
+  });
+
+  it('board settings: managers only, amber before red', async () => {
+    const cfg = (amber: number) => ({
+      thresholds: { recovery: { amber, red: 120 }, complete: { amber: 30, red: 60 } }, capacity: { level: 'red', note: 'Full until 14:00' },
+      updatedAt: serverTimestamp(), updatedBy: 'charge', updatedByName: 'Charge',
+    });
+    await assertSucceeds(setDoc(doc(as('charge'), 'pacuhub_bayboard', 'config'), cfg(60)));
+    await assertFails(setDoc(doc(as('charge'), 'pacuhub_bayboard', 'config'), cfg(150)));
+    await assertFails(setDoc(doc(as('rn'), 'pacuhub_bayboard', 'config'), { ...cfg(60), updatedBy: 'rn' }));
+  });
+
+  it('flow events are append-only and carry no patient data', async () => {
+    const ev = { bayId: 'b1', bayName: 'Bay 1', action: 'out', delayReason: 'awaiting-bed', recoveryMin: 80, waitMin: 45, by: 'rn', at: serverTimestamp() };
+    await assertSucceeds(setDoc(doc(as('rn'), 'pacuhub_bay_events', 'e1'), ev));
+    await assertFails(setDoc(doc(as('rn'), 'pacuhub_bay_events', 'e2'), { ...ev, patient: 'John' }));
+    await assertFails(setDoc(doc(as('viewer'), 'pacuhub_bay_events', 'e3'), { ...ev, by: 'viewer' }));
+    await assertFails(deleteDoc(doc(as('charge'), 'pacuhub_bay_events', 'e1')));
+  });
+});
+
 describe('everything else', () => {
   it("grants nothing on collections outside PACU Hub's (e.g. `users`)", async () => {
     await seed('boss', { status: 'active', access: ADMIN });
