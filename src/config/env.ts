@@ -38,6 +38,14 @@ const envSchema = z.object({
 
   /** SNV2 manager app (opened from the Schedule tab by "Manage schedule"). */
   VITE_SNV2_URL: z.url({ protocol: /^https$/ }).optional(),
+
+  // SNV2's OWN Firebase project (separate from PACU Hub's). These are public
+  // values — they identify SNV2's project so the manager can read day-off
+  // requests inside PACU Hub. No PACU Hub data lives here.
+  VITE_SNV2_FIREBASE_API_KEY: optionalString,
+  VITE_SNV2_FIREBASE_AUTH_DOMAIN: optionalString,
+  VITE_SNV2_FIREBASE_PROJECT_ID: optionalString,
+  VITE_SNV2_FIREBASE_APP_ID: optionalString,
 });
 
 export interface FirebaseWebConfig {
@@ -63,6 +71,8 @@ export interface AppEnv {
   idleWarningMs: number;
   /** SNV2 manager app URL, or null if not configured. */
   snv2Url: string | null;
+  /** SNV2's Firebase project (to read day-off requests), or null. */
+  snv2Firebase: FirebaseWebConfig | null;
   /** Blocking configuration problems — the app shows a setup screen. */
   issues: string[];
   /** Non-blocking problems — an invalid optional value fell back to its default. */
@@ -110,6 +120,10 @@ export function parseEnv(raw: Record<string, unknown>): AppEnv {
     );
   }
 
+  const { VITE_SNV2_FIREBASE_API_KEY: s2Key, VITE_SNV2_FIREBASE_AUTH_DOMAIN: s2Auth, VITE_SNV2_FIREBASE_PROJECT_ID: s2Proj, VITE_SNV2_FIREBASE_APP_ID: s2App } = config;
+  const snv2Firebase: FirebaseWebConfig | null =
+    s2Key && s2Auth && s2Proj && s2App ? { apiKey: s2Key, authDomain: s2Auth, projectId: s2Proj, appId: s2App } : null;
+
   const idleTimeoutMs = config.VITE_IDLE_TIMEOUT_MINUTES * 60_000;
   // The warning can never be longer than the timeout itself.
   const idleWarningMs = Math.min(config.VITE_IDLE_WARNING_SECONDS * 1000, idleTimeoutMs);
@@ -122,6 +136,7 @@ export function parseEnv(raw: Record<string, unknown>): AppEnv {
     idleTimeoutMs,
     idleWarningMs,
     snv2Url: config.VITE_SNV2_URL ?? null,
+    snv2Firebase,
     issues,
     warnings,
   };

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { normalizeRequestLink } from './requestLink';
+import { extractFormId, normalizeRequestLink } from './requestLink';
 
 const ID = 'AbCdEfGhIjKlMnOpQrSt12';
 
@@ -23,5 +23,17 @@ describe('normalizeRequestLink', () => {
     expect(normalizeRequestLink('https://hussein-zreik.github.io/SNV2/request.html?f=short')).toBeNull();
     expect(normalizeRequestLink('https://hussein-zreik.github.io/SNV2/request.html')).toBeNull();
     expect(normalizeRequestLink('not a link')).toBeNull();
+  });
+});
+
+describe('extractFormId', () => {
+  it('pulls a valid form id out of a request link', () => {
+    expect(extractFormId(`https://hussein-zreik.github.io/SNV2/request.html?f=${ID}`)).toBe(ID);
+  });
+  it('returns null for a missing/short id, junk, or null', () => {
+    expect(extractFormId('https://hussein-zreik.github.io/SNV2/request.html')).toBeNull();
+    expect(extractFormId('https://hussein-zreik.github.io/SNV2/request.html?f=short')).toBeNull();
+    expect(extractFormId('nonsense')).toBeNull();
+    expect(extractFormId(null)).toBeNull();
   });
 });

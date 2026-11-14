@@ -141,7 +141,7 @@ The UI only *shows or hides*. The rules *enforce*:
 |---|---|---|
 | Access model | ✅ Decided: per-person, per-tab levels, per-audit-type for Audits, templates, 2 admins | — |
 | Access storage | ✅ Decided: Firestore `pacuhub_users/{uid}` + Staff Access module | — |
-| SNV2 | ✅ Staff: "Request a day off" (SNV2 staff link, stored in `pacuhub_settings/schedule`). Managers: open SNV2, set the link | Published roster view (needs a publish step in SNV2) |
+| SNV2 | ✅ Staff: "Request a day off". Managers: open SNV2, set the link, **and read day-off requests in-app** (PACU Hub connects to SNV2's project as the manager — `src/services/snv2/`; requests are private to that manager, so a one-time SNV2 sign-in is required; session is per-tab and cleared on PACU Hub sign-out) | Published roster view (needs a publish step in SNV2) |
 | Forms engine | Not yet built | E1–E5 (form list, fields, sign-off rules) |
 | Audits | Not yet built | F1–F5 (items, scoring, thresholds, exports) |
 | Patient identifiers | None stored | D1 (PHI decision drives rules and retention) |

@@ -8,11 +8,13 @@
  * People with "Manage schedule" also get Manager tools: open SNV2, and set
  * the staff request link (kept in Firestore, never in the public code).
  */
-import { CalendarClock, CalendarDays, CalendarPlus, ExternalLink, Link2, Settings2 } from 'lucide-react';
+import { CalendarClock, CalendarDays, CalendarPlus, ExternalLink, Inbox, Link2, Settings2 } from 'lucide-react';
 import { Alert, Badge, Card, PageHeader, Skeleton, buttonVariants } from '@/components/ui';
 import { env } from '@/config/env';
+import { extractFormId } from '@/services/schedule/requestLink';
 import { usePermissions } from '@/core/permissions/usePermissions';
 import { RequestLinkForm } from './components/RequestLinkForm';
+import { StaffRequests } from './components/StaffRequests';
 import { useScheduleSettings } from './hooks/useScheduleSettings';
 
 function Section({ icon: Icon, title, badge, children }: { icon: typeof CalendarDays; title: string; badge?: React.ReactNode; children: React.ReactNode }) {
@@ -39,6 +41,7 @@ export default function ScheduleModule() {
   const isManager = can('schedule', 'manage');
   const settings = useScheduleSettings();
   const requestLink = settings.data?.requestLink ?? null;
+  const formId = extractFormId(requestLink);
 
   return (
     <>
@@ -71,7 +74,12 @@ export default function ScheduleModule() {
           <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-ink-muted">
             <Settings2 className="size-4" aria-hidden="true" /> Manager tools
           </h3>
-          <div className="grid gap-4 lg:grid-cols-2">
+          <Section icon={Inbox} title="Day-off requests from staff">
+            <p>Requests staff send from the link appear here, newest first. Mark each one handled once you've actioned it in the roster.</p>
+            <StaffRequests formId={formId} />
+          </Section>
+
+          <div className="mt-4 grid gap-4 lg:grid-cols-2">
             <Section icon={CalendarDays} title="SNV2 roster builder">
               <p>Build and publish the roster in SNV2. It opens in a new tab and uses its own manager sign-in.</p>
               {env.snv2Url ? (
