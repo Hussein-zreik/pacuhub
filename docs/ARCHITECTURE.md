@@ -141,7 +141,19 @@ The UI only *shows or hides*. The rules *enforce*:
 |---|---|---|
 | Access model | ✅ Decided: per-person, per-tab levels, per-audit-type for Audits, templates, 2 admins | — |
 | Access storage | ✅ Decided: Firestore `pacuhub_users/{uid}` + Staff Access module | — |
-| SNV2 | ✅ Staff: "Request a day off". Managers: open SNV2, set the link, **and read day-off requests in-app** (PACU Hub connects to SNV2's project as the manager — `src/services/snv2/`; requests are private to that manager, so a one-time SNV2 sign-in is required; session is per-tab and cleared on PACU Hub sign-out) | Published roster view (needs a publish step in SNV2) |
+| SNV2 | ✅ Staff: "Request a day off". Managers: open SNV2, set the link, and **approve / reject day-off requests in-app** (see "Day-off approvals" below) | Published roster view (needs a publish step in SNV2) |
 | Forms engine | Not yet built | E1–E5 (form list, fields, sign-off rules) |
 | Audits | Not yet built | F1–F5 (items, scoring, thresholds, exports) |
 | Patient identifiers | None stored | D1 (PHI decision drives rules and retention) |
+
+## 10. Day-off approvals (SNV2 roster write)
+
+Managers approve or reject staff day-off requests in **Schedule → Manager tools**. PACU Hub connects to SNV2's Firebase project as the SNV2 manager (requests are private to that account).
+
+- **Approve** makes *exactly* the change SNV2 makes when the manager adds a Req off by hand: `overrides[date][nurseId] = 'REQ'`, with the reason as that day's comment in `notes`. It is written to `rosters/{managerUid}` in a transaction as `{state, updatedAt, rev: rev+1, clashes}`, matching SNV2's own save, so SNV2's rules accept it and SNV2's multi-device sync merges it.
+  - **Stricter than the manual flow:** it skips locked (published) fortnights, past dates, and any day where the nurse already has an entry. It never overwrites an existing comment.
+- **Reject** records the decision. The roster is not touched.
+- **History / Undo:** decisions live in `pacuhub_dayoff_decisions` (Manage schedule only), including exactly which days an approval wrote. Undo removes only those days, and only if they are still PACU Hub's untouched Req off. Days changed in SNV2 are left alone. Days now in a locked fortnight cannot be undone and stay on record.
+- **Consistency:** the roster is written first, then the decision is recorded. If the record can't be saved, the roster change is rolled back.
+- **Code:** pure logic in `src/services/snv2/roster.ts` (unit-tested), transaction in `rosterWrite.ts`. `rules-tests/snv2-roster.rules.test.ts` runs the real write against a verbatim copy of **SNV2's own firestore.rules** (`rules-tests/fixtures/`). Re-copy that file if SNV2's rules change.
+
