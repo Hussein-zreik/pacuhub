@@ -55,9 +55,10 @@ export default function StaffAccessModule() {
     const who = person.displayName || person.email || 'a staff member';
     const label = accessLabel(change.access, catalog);
     if (change.status === 'disabled') return person.status === 'pending' ? `Declined access request from ${who}` : `Deactivated ${who}`;
-    if (person.status === 'pending') return `Approved ${who} — ${label}`;
+    if (person.status === 'pending') return `Approved ${who} — ${label}${change.rosterId ? ' (linked to roster)' : ''}`;
     if (person.status === 'disabled') return `Reactivated ${who} — ${label}`;
-    return `Changed ${who}'s access — ${label}`;
+    if (change.rosterId !== undefined && change.access === person.access) return `Changed ${who}'s roster link`;
+    return `Changed ${who}'s access — ${label}${change.rosterId !== undefined ? ' (roster link updated)' : ''}`;
   };
   const save = (person: UserProfile, change: AccessChange) =>
     update.mutate(

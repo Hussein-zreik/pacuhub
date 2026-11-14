@@ -46,7 +46,7 @@ function ConnectForm({ connect, connecting, error }: { connect: (e: string, p: s
     <div>
       <div className="flex items-center gap-2 text-sm text-ink-muted">
         <LinkIcon className="size-4 text-brand-600" aria-hidden="true" />
-        Connect your SNV2 manager login to see day-off requests here. You stay connected until you sign out.
+        Connect your SNV2 manager login to handle day-off requests here and publish locked fortnights to staff. You stay connected until you sign out of PACU Hub.
       </div>
       <form className="mt-4 grid gap-3 sm:max-w-sm" onSubmit={submit} noValidate>
         <Input
@@ -188,12 +188,13 @@ export function StaffRequests({ formId }: { formId: string | null }) {
   if (!snv2.configured) {
     return <Alert tone="info">Day-off requests aren't connected. An administrator can set the SNV2 project in configuration.</Alert>;
   }
-  if (!formId) {
-    return <Alert tone="info">Set the SNV2 staff request link above first — the requests come from that form.</Alert>;
-  }
   if (snv2.initializing) return <Skeleton className="h-24" />;
+  // Connecting also turns on automatic roster publishing, so offer it even before the request link is set.
   if (!snv2.manager) {
     return <ConnectForm connect={(e, p) => void snv2.connect(e, p)} connecting={snv2.connecting} error={snv2.connectError} />;
+  }
+  if (!formId) {
+    return <Alert tone="info">Set the SNV2 staff request link below first — the requests come from that form.</Alert>;
   }
 
   const doUndo = async () => {

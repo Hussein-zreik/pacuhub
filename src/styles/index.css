@@ -124,3 +124,25 @@ html.dark {
   --shadow-raised: 0 6px 16px rgb(0 0 0 / 0.45), 0 2px 4px rgb(0 0 0 / 0.3);
 }
 
+
+/* ── Roster shift badges (published roster). Colours echo SNV2's groups. ── */
+:root {
+  --shift-day-bg: #dbeafe; --shift-day-fg: #1e4f8f;
+  --shift-evening-bg: #fdecc8; --shift-evening-fg: #7a4a06;
+  --shift-night-bg: #e3dcfb; --shift-night-fg: #4b2fa0;
+  --shift-leave-bg: #d6f3e4; --shift-leave-fg: #17663f;
+  --shift-req-bg: #fde0e0; --shift-req-fg: #9b1c1c;
+}
+html.dark {
+  --shift-day-bg: #173a5e; --shift-day-fg: #b9d8ff;
+  --shift-evening-bg: #4a3410; --shift-evening-fg: #f6d48f;
+  --shift-night-bg: #2e2560; --shift-night-fg: #cfc2ff;
+  --shift-leave-bg: #123d2a; --shift-leave-fg: #9fe3bf;
+  --shift-req-bg: #4a1c1f; --shift-req-fg: #f7b4b4;
+}
+.shift-day { background: var(--shift-day-bg); color: var(--shift-day-fg); }
+.shift-evening { background: var(--shift-evening-bg); color: var(--shift-evening-fg); }
+.shift-night { background: var(--shift-night-bg); color: var(--shift-night-fg); }
+.shift-leave { background: var(--shift-leave-bg); color: var(--shift-leave-fg); }
+.shift-req { background: var(--shift-req-bg); color: var(--shift-req-fg); }
+.shift-off { color: var(--color-ink-subtle); font-weight: 400; }

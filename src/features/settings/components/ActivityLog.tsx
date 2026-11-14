@@ -2,7 +2,7 @@
  * Activity log (admins). Read-only, newest first, filterable by type.
  * Entries can't be edited or deleted — see firestore.rules.
  */
-import { CalendarCheck, History, ShieldCheck, SlidersHorizontal } from 'lucide-react';
+import { CalendarCheck, CalendarDays, History, ShieldCheck, SlidersHorizontal } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Alert, Badge, Card, EmptyState, SegmentedControl, Skeleton } from '@/components/ui';
 import { watchActivity, type ActivityEntry, type ActivityType } from '@/services/activity/activityLog';
@@ -12,6 +12,7 @@ const TYPE_META: Record<ActivityType, { label: string; tone: 'brand' | 'success'
   access: { label: 'Access', tone: 'brand', Icon: ShieldCheck },
   settings: { label: 'Settings', tone: 'neutral', Icon: SlidersHorizontal },
   dayoff: { label: 'Day off', tone: 'success', Icon: CalendarCheck },
+  schedule: { label: 'Roster', tone: 'brand', Icon: CalendarDays },
 };
 
 type Filter = 'all' | ActivityType;
@@ -46,6 +47,7 @@ export function ActivityLog() {
             { value: 'all', label: 'All' },
             { value: 'access', label: 'Access' },
             { value: 'dayoff', label: 'Day off' },
+            { value: 'schedule', label: 'Roster' },
             { value: 'settings', label: 'Settings' },
           ]}
         />
@@ -62,7 +64,7 @@ export function ActivityLog() {
             <Skeleton className="h-5 w-3/5" />
           </div>
         ) : shown.length === 0 ? (
-          <EmptyState icon={History} title="Nothing recorded yet" description="Access changes, day-off decisions and unit setting changes will appear here." />
+          <EmptyState icon={History} title="Nothing recorded yet" description="Access changes, day-off decisions, roster publishing and unit setting changes will appear here." />
         ) : (
           <ul className="divide-y divide-line">
             {shown.map((e) => {

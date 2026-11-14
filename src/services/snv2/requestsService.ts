@@ -157,6 +157,23 @@ export const snv2Requests = {
     return updateRoster(snv2Db(), uid, (state) => removeReqOff(state, { rnId, applied, notesWritten, reason }));
   },
 
+  /**
+   * Live view of the connected manager's SNV2 roster state (read only), used
+   * to publish locked fortnights. `exists: false` when there is no roster yet.
+   */
+  watchRoster(onData: (roster: { exists: boolean; state: unknown }) => void, onError: (error: unknown) => void): () => void {
+    const uid = snv2Auth().currentUser?.uid;
+    if (!uid) {
+      onError(new RosterError('snv2/no-roster', 'Connect SNV2 first.'));
+      return () => {};
+    }
+    return onSnapshot(
+      doc(snv2Db(), 'rosters', uid),
+      (snap) => onData({ exists: snap.exists(), state: snap.exists() ? (snap.data() as { state?: unknown }).state : undefined }),
+      onError,
+    );
+  },
+
   /** Mark a request handled / not handled (the only field SNV2 lets the owner change). */
   async setDone(formId: string, requestId: string, done: boolean): Promise<void> {
     await updateDoc(doc(snv2Db(), 'requestForms', formId, 'requests', requestId), { done });

@@ -46,6 +46,7 @@ export const userProfileSchema = z.object({
   lastSignInAt: timestamp,
   updatedAt: timestamp,
   updatedBy: nullableString,
+  rosterId: nullableString,
 });
 
 export function parseUserProfile(uid: string, data: unknown): UserProfile | null {

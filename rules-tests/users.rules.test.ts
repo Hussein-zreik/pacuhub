@@ -461,6 +461,74 @@ describe('sign-up domain restriction', () => {
   });
 });
 
+describe('roster link (account ↔ SNV2 name)', () => {
+  beforeEach(async () => {
+    await seed('admin', { status: 'active', access: ADMIN });
+    await seed('nurse', { status: 'active', access: { schedule: 'view' } });
+  });
+
+  it('an admin can link a staff account to a roster name', async () => {
+    await assertSucceeds(updateDoc(doc(as('admin'), USERS, 'nurse'), { ...adminUpdate('admin', { schedule: 'view' }, 'active'), rosterId: 'rn4' }));
+  });
+
+  it('an admin can link their own account', async () => {
+    await assertSucceeds(updateDoc(doc(as('admin'), USERS, 'admin'), { access: ADMIN, rosterId: 'rn1', updatedAt: serverTimestamp(), updatedBy: 'admin' }));
+  });
+
+  it('a nurse cannot link themselves to someone else’s row', async () => {
+    await assertFails(updateDoc(doc(as('nurse'), USERS, 'nurse'), { rosterId: 'rn9' }));
+  });
+
+  it('rejects an oversized roster id', async () => {
+    await assertFails(updateDoc(doc(as('admin'), USERS, 'nurse'), { ...adminUpdate('admin', { schedule: 'view' }, 'active'), rosterId: 'x'.repeat(41) }));
+  });
+});
+
+describe('published roster', () => {
+  const ROSTERS = 'pacuhub_rosters';
+  const fortnight = (by: string, over: Record<string, unknown> = {}) => ({
+    start: '2026-11-30', lockedAt: '2026-11-20T10:00:00.000Z',
+    rns: [{ id: 'rn1', name: 'Lina', row: Array(14).fill('D7') }], groups: [], shifts: [],
+    fp: 'abcd1234', syncedAt: serverTimestamp(), syncedBy: by, ...over,
+  });
+  beforeEach(async () => {
+    await seed('manager', { status: 'active', access: { schedule: 'manage' } });
+    await seed('nurse', { status: 'active', access: { schedule: 'view' } });
+    await seed('auditor', { status: 'active', access: { 'audits:infection-control': 'enter' } });
+    await seed('admin', { status: 'active', access: ADMIN });
+  });
+
+  it('a schedule manager (the sync) can publish a fortnight', async () => {
+    await assertSucceeds(setDoc(doc(as('manager'), ROSTERS, '2026-11-30'), fortnight('manager')));
+  });
+
+  it('staff with Schedule access, and admins, can read it; others cannot', async () => {
+    await env.withSecurityRulesDisabled((ctx) => setDoc(doc(ctx.firestore() as unknown as Firestore, ROSTERS, '2026-11-30'), fortnight('manager')));
+    await assertSucceeds(getDoc(doc(as('nurse'), ROSTERS, '2026-11-30')));
+    await assertSucceeds(getDoc(doc(as('admin'), ROSTERS, '2026-11-30')));
+    await assertFails(getDoc(doc(as('auditor'), ROSTERS, '2026-11-30')));
+    await assertFails(getDoc(doc(anonymous(), ROSTERS, '2026-11-30')));
+  });
+
+  it('a nurse with view access cannot publish or change it', async () => {
+    await assertFails(setDoc(doc(as('nurse'), ROSTERS, '2026-11-30'), fortnight('nurse')));
+  });
+
+  it('cannot smuggle extra fields such as comments', async () => {
+    await assertFails(setDoc(doc(as('manager'), ROSTERS, '2026-11-30'), fortnight('manager', { notes: { '2026-12-01': { rn1: 'private' } } })));
+  });
+
+  it('the document id must match the fortnight start', async () => {
+    await assertFails(setDoc(doc(as('manager'), ROSTERS, '2026-12-14'), fortnight('manager')));
+  });
+
+  it('a manager can remove an unlocked fortnight; a nurse cannot', async () => {
+    await env.withSecurityRulesDisabled((ctx) => setDoc(doc(ctx.firestore() as unknown as Firestore, ROSTERS, '2026-11-30'), fortnight('manager')));
+    await assertFails(deleteDoc(doc(as('nurse'), ROSTERS, '2026-11-30')));
+    await assertSucceeds(deleteDoc(doc(as('manager'), ROSTERS, '2026-11-30')));
+  });
+});
+
 describe('everything else', () => {
   it("grants nothing on collections outside PACU Hub's (e.g. `users`)", async () => {
     await seed('boss', { status: 'active', access: ADMIN });
