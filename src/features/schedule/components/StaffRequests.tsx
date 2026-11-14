@@ -4,9 +4,10 @@
  * Requests are private to the SNV2 manager, so the manager connects their SNV2
  * login once; the session is per-tab and cleared on PACU Hub sign-out.
  */
-import { CalendarCheck, CheckCircle2, Circle, Eye, EyeOff, LinkIcon, Loader2, LogOut, Unplug } from 'lucide-react';
-import { useId, useMemo, useState, type FormEvent } from 'react';
-import { Alert, Badge, Button, Card, EmptyState, Input, Skeleton } from '@/components/ui';
+import { CalendarCheck, Check, Eye, EyeOff, History, Inbox, LinkIcon, Loader2, LogOut, RotateCcw, X } from 'lucide-react';
+import { useId, useState, type FormEvent } from 'react';
+import { Alert, Badge, Button, Card, Dialog, EmptyState, Input, Skeleton } from '@/components/ui';
+import type { DayOffDecision } from '@/services/schedule/dayOffDecisions';
 import type { DayOffRequest } from '@/services/snv2/requestsService';
 import { cn } from '@/utils/cn';
 import { useSnv2Requests } from '../hooks/useSnv2Requests';
@@ -89,30 +90,89 @@ function ConnectForm({ connect, connecting, error }: { connect: (e: string, p: s
   );
 }
 
-function RequestItem({ request, onToggle }: { request: DayOffRequest; onToggle: (done: boolean) => void }) {
-  const [saving, setSaving] = useState(false);
-  const toggle = async () => {
-    setSaving(true);
+type Feedback = { tone: 'success' | 'warning' | 'danger'; text: string } | null;
+
+const skippedText = (skipped: { date: string; why: string }[]) =>
+  skipped.map((s) => `${formatDates([s.date])} (${s.why})`).join(', ');
+
+function PendingItem({
+  request,
+  onApprove,
+  onReject,
+}: {
+  request: DayOffRequest;
+  onApprove: () => Promise<{ applied: string[]; skipped: { date: string; why: string }[] }>;
+  onReject: () => Promise<void>;
+}) {
+  const [busy, setBusy] = useState<'approve' | 'reject' | null>(null);
+  const [feedback, setFeedback] = useState<Feedback>(null);
+
+  const run = async (kind: 'approve' | 'reject') => {
+    setBusy(kind);
+    setFeedback(null);
     try {
-      await onToggle(!request.done);
+      if (kind === 'approve') {
+        const r = await onApprove();
+        if (r.skipped.length) setFeedback({ tone: 'warning', text: `Approved. Not added: ${skippedText(r.skipped)}.` });
+      } else {
+        await onReject();
+      }
+    } catch (error) {
+      setFeedback({ tone: 'danger', text: (error as Error).message || 'Something went wrong. Please try again.' });
     } finally {
-      setSaving(false);
+      setBusy(null);
     }
   };
+
   return (
-    <li className={cn('flex flex-col gap-2 px-5 py-4 sm:flex-row sm:items-start sm:justify-between', request.done && 'opacity-60')}>
+    <li className="px-5 py-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <p className="font-semibold text-ink">{request.name || 'Unknown'}</p>
+          <p className="mt-0.5 text-sm font-medium text-brand-700">{formatDates(request.dates) || 'No valid dates'}</p>
+          {request.reason && <p className="mt-1 text-sm text-ink-muted">“{request.reason}”</p>}
+          {request.createdAt && <p className="mt-1 text-xs text-ink-subtle">Sent {formatWhen(request.createdAt)}</p>}
+        </div>
+        <div className="flex shrink-0 gap-2">
+          <Button size="sm" onClick={() => void run('approve')} loading={busy === 'approve'} disabled={busy !== null}>
+            {busy !== 'approve' && <Check />} Approve
+          </Button>
+          <Button
+            size="sm"
+            variant="secondary"
+            className="text-danger-700"
+            onClick={() => void run('reject')}
+            loading={busy === 'reject'}
+            disabled={busy !== null}
+          >
+            {busy !== 'reject' && <X />} Reject
+          </Button>
+        </div>
+      </div>
+      {feedback && <Alert tone={feedback.tone} className="mt-3">{feedback.text}</Alert>}
+    </li>
+  );
+}
+
+function HistoryItem({ decision, onUndo }: { decision: DayOffDecision; onUndo: () => void }) {
+  const approved = decision.decision === 'approved';
+  return (
+    <li className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-start sm:justify-between">
       <div className="min-w-0">
         <p className="flex flex-wrap items-center gap-2 font-semibold text-ink">
-          {request.name || 'Unknown'}
-          {request.done && <Badge tone="success">Handled</Badge>}
+          {decision.name || 'Unknown'}
+          <Badge tone={approved ? 'success' : 'danger'}>{approved ? 'Approved' : 'Rejected'}</Badge>
         </p>
-        <p className="mt-0.5 text-sm font-medium text-brand-700">{formatDates(request.dates) || 'No valid dates'}</p>
-        {request.reason && <p className="mt-1 text-sm text-ink-muted">“{request.reason}”</p>}
-        {request.createdAt && <p className="mt-1 text-xs text-ink-subtle">Sent {formatWhen(request.createdAt)}</p>}
+        <p className="mt-0.5 text-sm font-medium text-brand-700">{formatDates(decision.dates)}</p>
+        {decision.reason && <p className="mt-1 text-sm text-ink-muted">“{decision.reason}”</p>}
+        {approved && decision.applied.length > 0 && (
+          <p className="mt-1 text-xs text-success-700">Added to roster as Req off: {formatDates(decision.applied)}</p>
+        )}
+        {decision.skipped.length > 0 && <p className="mt-1 text-xs text-warning-700">Not added: {skippedText(decision.skipped)}</p>}
+        {decision.decidedAt && <p className="mt-1 text-xs text-ink-subtle">Decided {formatWhen(decision.decidedAt)}</p>}
       </div>
-      <Button size="sm" variant={request.done ? 'ghost' : 'secondary'} onClick={() => void toggle()} loading={saving} className="shrink-0">
-        {!saving && (request.done ? <Circle /> : <CheckCircle2 />)}
-        {request.done ? 'Mark not done' : 'Mark done'}
+      <Button size="sm" variant="secondary" onClick={onUndo} className="shrink-0">
+        <RotateCcw /> Undo
       </Button>
     </li>
   );
@@ -120,10 +180,10 @@ function RequestItem({ request, onToggle }: { request: DayOffRequest; onToggle: 
 
 export function StaffRequests({ formId }: { formId: string | null }) {
   const snv2 = useSnv2Requests(formId);
-  const [showHandled, setShowHandled] = useState(false);
-
-  const pending = useMemo(() => snv2.requests.filter((r) => !r.done), [snv2.requests]);
-  const visible = showHandled ? snv2.requests : pending;
+  const [tab, setTab] = useState<'pending' | 'history'>('pending');
+  const [confirmUndo, setConfirmUndo] = useState<DayOffDecision | null>(null);
+  const [undoing, setUndoing] = useState(false);
+  const [undoMessage, setUndoMessage] = useState<Feedback>(null);
 
   if (!snv2.configured) {
     return <Alert tone="info">Day-off requests aren't connected. An administrator can set the SNV2 project in configuration.</Alert>;
@@ -132,22 +192,62 @@ export function StaffRequests({ formId }: { formId: string | null }) {
     return <Alert tone="info">Set the SNV2 staff request link above first — the requests come from that form.</Alert>;
   }
   if (snv2.initializing) return <Skeleton className="h-24" />;
-
   if (!snv2.manager) {
     return <ConnectForm connect={(e, p) => void snv2.connect(e, p)} connecting={snv2.connecting} error={snv2.connectError} />;
   }
 
+  const doUndo = async () => {
+    if (!confirmUndo) return;
+    setUndoing(true);
+    setUndoMessage(null);
+    try {
+      const r = await snv2.undo(confirmUndo);
+      const notes: string[] = [];
+      if (r.locked.length) notes.push(`${formatDates(r.locked)} stay Req off — that fortnight is locked in SNV2`);
+      if (r.changedInSnv2.length) notes.push(`${formatDates(r.changedInSnv2)} had been changed in SNV2 and were left as they are`);
+      setUndoMessage(
+        notes.length
+          ? { tone: 'warning', text: `Partly undone: ${notes.join('; ')}.` }
+          : { tone: 'success', text: `${confirmUndo.name}'s request is back in Pending.` },
+      );
+      setConfirmUndo(null);
+    } catch (error) {
+      setUndoMessage({ tone: 'danger', text: (error as Error).message || 'Undo failed. Please try again.' });
+      setConfirmUndo(null);
+    } finally {
+      setUndoing(false);
+    }
+  };
+
+  const historyCount = snv2.decisions.length + snv2.handledElsewhere.length;
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2 text-sm text-ink-muted">
-          <Badge tone="brand">{pending.length} new</Badge>
-          <span>Connected as {snv2.manager.email}</span>
+        <div role="tablist" aria-label="Day-off requests" className="inline-flex rounded-lg border border-line bg-surface p-1 shadow-sm">
+          {(
+            [
+              ['pending', 'Pending', snv2.pending.length, Inbox],
+              ['history', 'History', historyCount, History],
+            ] as const
+          ).map(([key, label, count, Icon]) => (
+            <button
+              key={key}
+              role="tab"
+              aria-selected={tab === key}
+              onClick={() => setTab(key)}
+              className={cn(
+                'flex min-h-10 items-center gap-2 rounded-md px-3 text-sm font-semibold transition-colors',
+                tab === key ? 'bg-brand-600 text-white' : 'text-ink-muted hover:bg-brand-50 hover:text-ink',
+              )}
+            >
+              <Icon className="size-4" aria-hidden="true" /> {label}
+              <span className={cn('rounded-full px-1.5 text-xs tabular-nums', tab === key ? 'bg-white/20' : 'bg-canvas')}>{count}</span>
+            </button>
+          ))}
         </div>
-        <div className="flex gap-2">
-          <Button size="sm" variant="ghost" onClick={() => setShowHandled((v) => !v)}>
-            {showHandled ? 'Hide handled' : 'Show handled'}
-          </Button>
+        <div className="flex items-center gap-2 text-xs text-ink-muted">
+          <span>SNV2: {snv2.manager.email}</span>
           <Button size="sm" variant="ghost" onClick={() => void snv2.disconnect()}>
             <LogOut /> Disconnect
           </Button>
@@ -155,26 +255,81 @@ export function StaffRequests({ formId }: { formId: string | null }) {
       </div>
 
       {snv2.requestsError && <Alert tone="danger">{snv2.requestsError}</Alert>}
+      {undoMessage && <Alert tone={undoMessage.tone}>{undoMessage.text}</Alert>}
 
       <Card className="overflow-hidden">
         {snv2.loadingRequests ? (
           <div className="flex items-center gap-2 px-5 py-6 text-sm text-ink-muted">
             <Loader2 className="size-4 animate-spin" /> Loading requests…
           </div>
-        ) : visible.length === 0 ? (
-          <EmptyState
-            icon={snv2.requests.length === 0 ? CalendarCheck : Unplug}
-            title={snv2.requests.length === 0 ? 'No day-off requests yet' : 'No new requests'}
-            description={snv2.requests.length === 0 ? 'Requests staff send from the link will appear here.' : 'All caught up — everything is handled.'}
-          />
+        ) : tab === 'pending' ? (
+          snv2.pending.length === 0 ? (
+            <EmptyState icon={CalendarCheck} title="No pending requests" description="New requests staff send from the link will appear here." />
+          ) : (
+            <ul className="divide-y divide-line">
+              {snv2.pending.map((request) => (
+                <PendingItem
+                  key={request.id}
+                  request={request}
+                  onApprove={() => snv2.approve(request)}
+                  onReject={() => snv2.reject(request)}
+                />
+              ))}
+            </ul>
+          )
+        ) : historyCount === 0 ? (
+          <EmptyState icon={History} title="No history yet" description="Approved and rejected requests will be listed here." />
         ) : (
           <ul className="divide-y divide-line">
-            {visible.map((request) => (
-              <RequestItem key={request.id} request={request} onToggle={(done) => snv2.setDone(request.id, done)} />
+            {snv2.decisions.map((decision) => (
+              <HistoryItem key={decision.id} decision={decision} onUndo={() => setConfirmUndo(decision)} />
+            ))}
+            {snv2.handledElsewhere.map((request) => (
+              <li key={request.id} className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
+                  <p className="flex flex-wrap items-center gap-2 font-semibold text-ink">
+                    {request.name || 'Unknown'} <Badge>Handled in SNV2</Badge>
+                  </p>
+                  <p className="mt-0.5 text-sm font-medium text-brand-700">{formatDates(request.dates)}</p>
+                </div>
+                <Button size="sm" variant="secondary" className="shrink-0" onClick={() => void snv2.reopen(request.id)}>
+                  <RotateCcw /> Reopen
+                </Button>
+              </li>
             ))}
           </ul>
         )}
       </Card>
+
+      {confirmUndo && (
+        <Dialog
+          open
+          onOpenChange={(open) => !open && !undoing && setConfirmUndo(null)}
+          title={confirmUndo.decision === 'approved' ? 'Undo approval?' : 'Undo rejection?'}
+          description={
+            confirmUndo.decision === 'approved' ? (
+              <>
+                The Req off days PACU Hub added for <span className="font-semibold text-ink">{confirmUndo.name}</span> will be removed
+                from the SNV2 roster, and the request goes back to Pending.
+              </>
+            ) : (
+              <>
+                <span className="font-semibold text-ink">{confirmUndo.name}</span>'s request goes back to Pending so you can decide again.
+              </>
+            )
+          }
+          footer={
+            <>
+              <Button variant="secondary" onClick={() => setConfirmUndo(null)} disabled={undoing} data-autofocus>
+                Cancel
+              </Button>
+              <Button onClick={() => void doUndo()} loading={undoing}>
+                {!undoing && <RotateCcw />} Undo
+              </Button>
+            </>
+          }
+        />
+      )}
     </div>
   );
 }

@@ -303,6 +303,47 @@ describe('schedule settings (SNV2 staff request link)', () => {
   });
 });
 
+describe('day-off decisions (History / Undo)', () => {
+  const DEC = 'pacuhub_dayoff_decisions';
+  const FORM = 'AbCdEfGhIjKlMnOpQrSt12';
+  const decision = (uid: string, over: Record<string, unknown> = {}) => ({
+    formId: FORM, requestId: 'req123', rnId: 'n0', name: 'Lina Saad', dates: ['2026-11-21'], reason: 'Exam',
+    decision: 'approved', applied: ['2026-11-21'], notesWritten: ['2026-11-21'], skipped: [],
+    decidedBy: uid, decidedAt: serverTimestamp(), ...over,
+  });
+  const id = `${FORM}__req123`;
+
+  beforeEach(async () => {
+    await seed('manager', { status: 'active', access: { schedule: 'manage' } });
+    await seed('nurse', { status: 'active', access: { schedule: 'view' } });
+  });
+
+  it('a schedule manager can record, read and undo (delete) a decision', async () => {
+    await assertSucceeds(setDoc(doc(as('manager'), DEC, id), decision('manager')));
+    await assertSucceeds(getDoc(doc(as('manager'), DEC, id)));
+    await assertSucceeds(deleteDoc(doc(as('manager'), DEC, id)));
+  });
+
+  it('staff without Manage schedule cannot read or write decisions', async () => {
+    await assertFails(setDoc(doc(as('nurse'), DEC, id), decision('nurse')));
+    await assertFails(getDoc(doc(as('nurse'), DEC, id)));
+  });
+
+  it('the record id must match the request it describes', async () => {
+    await assertFails(setDoc(doc(as('manager'), DEC, `${FORM}__other`), decision('manager')));
+  });
+
+  it('a rejection can never claim roster days', async () => {
+    await assertFails(setDoc(doc(as('manager'), DEC, id), decision('manager', { decision: 'rejected' })));
+    await assertSucceeds(setDoc(doc(as('manager'), DEC, id), decision('manager', { decision: 'rejected', applied: [], notesWritten: [] })));
+  });
+
+  it('must be stamped with the real decider and unknown fields are refused', async () => {
+    await assertFails(setDoc(doc(as('manager'), DEC, id), decision('someone-else')));
+    await assertFails(setDoc(doc(as('manager'), DEC, id), { ...decision('manager'), extra: 1 }));
+  });
+});
+
 describe('everything else', () => {
   it("grants nothing on collections outside PACU Hub's (e.g. `users`)", async () => {
     await seed('boss', { status: 'active', access: ADMIN });

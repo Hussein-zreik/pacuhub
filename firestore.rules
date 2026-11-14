@@ -149,6 +149,35 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // ── Day-off request decisions (History / Undo) ──────────────────────────
+    // One record per decided SNV2 request: approved / rejected, and exactly
+    // which days an approval wrote into the SNV2 roster (so Undo can remove
+    // only those). Schedule managers only.
+    function validDecision(id, d) {
+      return d.keys().hasOnly(['formId', 'requestId', 'rnId', 'name', 'dates', 'reason',
+                               'decision', 'applied', 'notesWritten', 'skipped', 'decidedBy', 'decidedAt'])
+        && d.formId is string && d.formId.matches('^[A-Za-z0-9]{20,40}$')
+        && d.requestId is string && d.requestId.matches('^[A-Za-z0-9]{1,64}$')
+        && id == d.formId + '__' + d.requestId
+        && d.rnId is string && d.rnId.size() <= 40
+        && d.name is string && d.name.size() <= 120
+        && d.reason is string && d.reason.size() <= 300
+        && d.decision in ['approved', 'rejected']
+        && d.dates is list && d.dates.size() <= 14
+        && d.applied is list && d.applied.size() <= 14
+        && d.notesWritten is list && d.notesWritten.size() <= 14
+        && d.skipped is list && d.skipped.size() <= 14
+        && (d.decision == 'approved' || d.applied.size() == 0)
+        && d.decidedBy == request.auth.uid
+        && d.decidedAt == request.time;
+    }
+
+    match /pacuhub_dayoff_decisions/{id} {
+      allow read: if hasLevel('schedule', ['manage']);
+      allow create, update: if hasLevel('schedule', ['manage']) && validDecision(id, request.resource.data);
+      allow delete: if hasLevel('schedule', ['manage']);
+    }
+
     // ── Schedule settings ────────────────────────────────────────────────────
     // The SNV2 staff request link. Kept here (not in the public code) because
     // its form id opens the request form and its staff name list.

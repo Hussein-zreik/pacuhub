@@ -75,7 +75,7 @@ export default function ScheduleModule() {
             <Settings2 className="size-4" aria-hidden="true" /> Manager tools
           </h3>
           <Section icon={Inbox} title="Day-off requests from staff">
-            <p>Requests staff send from the link appear here, newest first. Mark each one handled once you've actioned it in the roster.</p>
+            <p>Approve to add a request to the SNV2 roster as Req off, or reject it. Every decision is kept in History, where you can undo it.</p>
             <StaffRequests formId={formId} />
           </Section>
 
