@@ -9,6 +9,7 @@ import ScheduleModule from './ScheduleModule';
 
 const service = vi.hoisted(() => ({ getScheduleSettings: vi.fn(), saveRequestLink: vi.fn() }));
 vi.mock('@/services/schedule/scheduleSettingsService', () => service);
+vi.mock('@/hooks/usePublishedRosters', () => ({ usePublishedRosters: () => ({ rosters: [], error: false }), useMyRosterId: () => null }));
 
 const LINK = 'https://hussein-zreik.github.io/SNV2/request.html?f=AbCdEfGhIjKlMnOpQrSt12';
 

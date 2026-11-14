@@ -98,6 +98,12 @@ service cloud.firestore {
       return access is map && access.size() <= 64;
     }
 
+    // Link from a staff account to their id on the SNV2 roster (admins set it).
+    function validRosterId(d) {
+      return d.get('rosterId', null) == null
+        || (d.rosterId is string && d.rosterId.size() >= 1 && d.rosterId.size() <= 40);
+    }
+
     function optionalString(value) {
       return value == null || (value is string && value.size() <= 300);
     }
@@ -142,8 +148,9 @@ service cloud.firestore {
         && request.auth.uid != uid
         && resource.data.get('owner', false) == false
         && request.resource.data.diff(resource.data).affectedKeys()
-             .hasOnly(['access', 'status', 'updatedAt', 'updatedBy'])
+             .hasOnly(['access', 'status', 'rosterId', 'updatedAt', 'updatedBy'])
         && validAccess(request.resource.data.access)
+        && validRosterId(request.resource.data)
         && request.resource.data.status in ['pending', 'active', 'disabled']
         // An active account must have access to at least one tab.
         && (request.resource.data.status != 'active' || request.resource.data.access.size() > 0)
@@ -155,8 +162,9 @@ service cloud.firestore {
       allow update: if isAdmin()
         && request.auth.uid == uid
         && request.resource.data.diff(resource.data).affectedKeys()
-             .hasOnly(['access', 'updatedAt', 'updatedBy'])
+             .hasOnly(['access', 'rosterId', 'updatedAt', 'updatedBy'])
         && validAccess(request.resource.data.access)
+        && validRosterId(request.resource.data)
         && request.resource.data.access.get('staff-access', 'none') == 'admin'
         && request.resource.data.updatedBy == request.auth.uid
         && request.resource.data.updatedAt == request.time;
@@ -190,6 +198,26 @@ service cloud.firestore {
     match /pacuhub_dayoff_decisions/{id} {
       allow read: if hasLevel('schedule', ['manage']);
       allow create, update: if hasLevel('schedule', ['manage']) && validDecision(id, request.resource.data);
+      allow delete: if hasLevel('schedule', ['manage']);
+    }
+
+    // ── Published roster ─────────────────────────────────────────────────────
+    // A copy of each fortnight LOCKED in SNV2, for staff to view. Written only
+    // by the automatic sync (schedule managers). Contains names and shift codes
+    // only — never SNV2 day comments.
+    match /pacuhub_rosters/{start} {
+      allow read: if hasLevel('schedule', ['view', 'manage']) || isAdmin();
+      allow create, update: if hasLevel('schedule', ['manage'])
+        && start.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && request.resource.data.keys().hasOnly(['start', 'lockedAt', 'rns', 'groups', 'shifts', 'fp', 'syncedAt', 'syncedBy'])
+        && request.resource.data.start == start
+        && request.resource.data.lockedAt is string && request.resource.data.lockedAt.size() <= 40
+        && request.resource.data.rns is list && request.resource.data.rns.size() <= 120
+        && request.resource.data.groups is list && request.resource.data.groups.size() <= 10
+        && request.resource.data.shifts is list && request.resource.data.shifts.size() <= 20
+        && request.resource.data.fp is string && request.resource.data.fp.size() <= 16
+        && request.resource.data.syncedBy == request.auth.uid
+        && request.resource.data.syncedAt == request.time;
       allow delete: if hasLevel('schedule', ['manage']);
     }
 
@@ -260,7 +288,7 @@ service cloud.firestore {
       allow read: if isAdmin();
       allow create: if isActive()
         && request.resource.data.keys().hasOnly(['type', 'summary', 'by', 'byName', 'at'])
-        && request.resource.data.type in ['access', 'settings', 'dayoff']
+        && request.resource.data.type in ['access', 'settings', 'dayoff', 'schedule']
         && request.resource.data.summary is string && request.resource.data.summary.size() <= 300
         && request.resource.data.byName is string && request.resource.data.byName.size() <= 120
         && request.resource.data.by == request.auth.uid

@@ -106,6 +106,7 @@ export async function updateUserAccess(uid: string, change: AccessChange, adminU
   await updateDoc(userRef(uid), {
     access: { ...change.access },
     status: change.status,
+    ...(change.rosterId !== undefined ? { rosterId: change.rosterId } : {}),
     updatedAt: serverTimestamp(),
     updatedBy: adminUid,
   });

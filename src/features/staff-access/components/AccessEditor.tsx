@@ -3,15 +3,17 @@
  * for every tab (and every audit type). Built entirely from the permission
  * catalog, so new tabs and audit types appear here automatically.
  */
-import { Check, Lock, X } from 'lucide-react';
-import { useMemo, useState } from 'react';
-import { Alert, Button, Dialog, SegmentedControl, type SegmentOption } from '@/components/ui';
+import { CalendarDays, Check, Lock, X } from 'lucide-react';
+import { useId, useMemo, useState } from 'react';
+import { Alert, Button, Dialog, SegmentedControl, Select, type SegmentOption } from '@/components/ui';
 import { ACCESS_PRESETS, expandPreset, matchPreset } from '@/config/accessPresets';
 import { useSettings } from '@/context/SettingsContext';
 import { useModuleRegistry, usePermissionCatalog } from '@/core/modules/ModuleRegistryContext';
 import { hasAnyAccess, sanitizeAccess } from '@/core/permissions/catalog';
 import { ADMIN_AREA, ADMIN_LEVEL, NO_ACCESS, type AccessMap, type PermissionArea } from '@/core/permissions/types';
+import { rosterPeople } from '@/services/roster/published';
 import type { AccessChange, UserProfile } from '@/services/users/types';
+import { usePublishedRosters } from '@/hooks/usePublishedRosters';
 import { cn } from '@/utils/cn';
 import { friendlySaveError } from '../logic';
 
@@ -53,6 +55,11 @@ export function AccessEditor({ person, mode, isSelf, saving, error, onSubmit, on
     return { ...expandPreset(preset, catalog) };
   });
   const [touched, setTouched] = useState(false);
+  const [rosterId, setRosterId] = useState<string>(person.rosterId ?? '');
+  const rosterSelectId = useId();
+  const { rosters } = usePublishedRosters();
+  const people = useMemo(() => rosterPeople(rosters ?? []), [rosters]);
+  const groups = useMemo(() => [...new Set(people.map((p) => p.group))], [people]);
 
   const withSelfLock = (next: Record<string, string>) => (isSelf ? { ...next, [ADMIN_AREA]: ADMIN_LEVEL } : next);
   const setLevel = (key: string, level: string) =>
@@ -78,7 +85,8 @@ export function AccessEditor({ person, mode, isSelf, saving, error, onSubmit, on
 
   const submit = () => {
     setTouched(true);
-    if (!invalid) onSubmit({ access: clean, status: 'active' });
+    const link = rosterId || null;
+    if (!invalid) onSubmit({ access: clean, status: 'active', ...(link !== person.rosterId ? { rosterId: link } : {}) });
   };
 
   return (
@@ -207,6 +215,42 @@ export function AccessEditor({ person, mode, isSelf, saving, error, onSubmit, on
             );
           })}
         </div>
+      </section>
+
+      {/* Roster link */}
+      <section aria-labelledby="roster-link-heading" className="mt-6">
+        <h3 id="roster-link-heading" className="mb-1 flex items-center gap-2 text-sm font-semibold text-ink">
+          <CalendarDays className="size-4 text-brand-600" aria-hidden="true" /> Name on the published roster
+        </h3>
+        <p className="mb-2 text-xs text-ink-muted">Highlights this person's own row and shows their “My shifts” in Schedule.</p>
+        {people.length === 0 && !person.rosterId ? (
+          <p className="text-sm text-ink-muted">Names appear here once a fortnight is locked in SNV2 and published.</p>
+        ) : (
+          <Select
+            id={rosterSelectId}
+            aria-labelledby="roster-link-heading"
+            value={rosterId}
+            disabled={saving}
+            onChange={(e) => setRosterId(e.target.value)}
+            className="sm:max-w-sm"
+          >
+            <option value="">Not linked</option>
+            {person.rosterId && !people.some((p) => p.id === person.rosterId) && (
+              <option value={person.rosterId}>Current link (not on recent rosters)</option>
+            )}
+            {groups.map((g) => (
+              <optgroup key={g} label={g}>
+                {people
+                  .filter((p) => p.group === g)
+                  .map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+              </optgroup>
+            ))}
+          </Select>
+        )}
       </section>
 
       <div className="mt-3 space-y-2">

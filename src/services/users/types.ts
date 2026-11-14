@@ -23,9 +23,13 @@ export interface UserProfile {
   updatedAt: Date | null;
   /** uid of the admin who last changed this user's access. */
   updatedBy: string | null;
+  /** This person's id on the SNV2 roster (set by an admin), to highlight their shifts. */
+  rosterId: string | null;
 }
 
 export interface AccessChange {
   access: AccessMap;
   status: AccessStatus;
+  /** Link to an SNV2 roster name; omit to leave unchanged, null to unlink. */
+  rosterId?: string | null;
 }

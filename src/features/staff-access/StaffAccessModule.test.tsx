@@ -11,11 +11,17 @@ import StaffAccessModule from './StaffAccessModule';
 const service = vi.hoisted(() => ({ listUserProfiles: vi.fn(), updateUserAccess: vi.fn() }));
 vi.mock('@/services/users/userProfileService', () => service);
 vi.mock('@/services/activity/activityLog', () => ({ logActivity: vi.fn(async () => {}) }));
+vi.mock('@/services/roster/publishedRosters', () => ({
+  watchPublishedRosters: (onData: (r: unknown[]) => void) => {
+    onData([{ start: '2026-11-30', lockedAt: '', rns: [{ id: 'rn7', name: 'Lina Saad (RN)', row: Array(14).fill('D7') }], groups: [], shifts: [], fp: 'x', syncedAt: null }]);
+    return () => {};
+  },
+}));
 
 const ADMIN = { 'staff-access': 'admin' };
 const profile = (over: Partial<UserProfile>): UserProfile => ({
   uid: 'x', email: 'x@aub.edu.lb', displayName: 'X', photoURL: null, access: {}, status: 'pending',
-  owner: false, createdAt: new Date('2026-11-10'), lastSignInAt: null, updatedAt: null, updatedBy: null, ...over,
+  owner: false, createdAt: new Date('2026-11-10'), lastSignInAt: null, updatedAt: null, updatedBy: null, rosterId: null, ...over,
 });
 const me = { uid: 'admin-1', email: 'manager@aub.edu.lb', displayName: 'Maya Khoury', photoURL: null };
 
@@ -78,6 +84,16 @@ describe('Staff Access — per-person, per-tab access', () => {
     await user.click(pick(dialog, /access to pacu forms/i, /no access/i));
     await user.click(within(dialog).getByRole('button', { name: /approve access/i }));
     expect(service.updateUserAccess).toHaveBeenCalledWith('p1', { access: { schedule: 'view' }, status: 'active' }, 'admin-1');
+  });
+
+  it('links the person to their name on the published roster', async () => {
+    const user = userEvent.setup();
+    renderModule(STAFF);
+    const dialog = await openReview(user);
+    await user.click(pick(dialog, /access to pacu forms/i, /no access/i));
+    await user.selectOptions(within(dialog).getByRole('combobox', { name: /name on the published roster/i }), 'rn7');
+    await user.click(within(dialog).getByRole('button', { name: /approve access/i }));
+    expect(service.updateUserAccess).toHaveBeenCalledWith('p1', { access: { schedule: 'view' }, status: 'active', rosterId: 'rn7' }, 'admin-1');
   });
 
   it('a template fills every tab in one click (Educator → all audit types)', async () => {

@@ -98,6 +98,10 @@ Each person's access is chosen **tab by tab**. For **Unit Audits** it's chosen *
 
 Templates are defined in `src/config/accessPresets.ts`. A tab's levels are declared in its own `module.ts`, and audit types live in `src/features/audits/categories.ts`. A new tab or audit type appears in Staff Access automatically.
 
+## Linking staff to their roster name
+
+In **Staff Access → Edit** (or when approving), choose the person under **Name on the published roster**. Their own row is then highlighted in Schedule, with a **My shifts** strip. Names come from fortnights already published from SNV2, so lock at least one fortnight first.
+
 ## Settings tab
 
 Every approved person has **Settings → My preferences** (dark mode, text size, start page, a shorter personal sign-out time). Admins also see:

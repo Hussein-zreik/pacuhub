@@ -142,7 +142,7 @@ The UI only *shows or hides*. The rules *enforce*:
 |---|---|---|
 | Access model | ✅ Decided: per-person, per-tab levels, per-audit-type for Audits, templates, 2 admins | — |
 | Access storage | ✅ Decided: Firestore `pacuhub_users/{uid}` + Staff Access module | — |
-| SNV2 | ✅ Staff: "Request a day off". Managers: open SNV2, set the link, and **approve / reject day-off requests in-app** (see "Day-off approvals" below) | Published roster view (needs a publish step in SNV2) |
+| SNV2 | ✅ Staff: "Request a day off" and the **published roster** (see §12). Managers: **approve / reject day-off requests in-app** (§10) | — |
 | Forms engine | Not yet built | E1–E5 (form list, fields, sign-off rules) |
 | Audits | Not yet built | F1–F5 (items, scoring, thresholds, exports) |
 | Patient identifiers | None stored | D1 (PHI decision drives rules and retention) |
@@ -171,3 +171,15 @@ Managers approve or reject staff day-off requests in **Schedule → Manager tool
 - **Pure model** in `services/settings/model.ts` (Zod schemas, defaults, `effectiveIdle`, `isDayShift`, `announcementActive`, domain checks), unit-tested. Missing or malformed documents fall back to defaults, so the app works before anyone saves settings.
 - **Sign-up domain rule is enforced on the server:** creating a `pacuhub_users` record checks the email domain against `pacuhub_settings/public`. Hiding the button alone would not stop a determined user.
 - **Activity log is honest about scope:** it records actions taken through PACU Hub, stamped with the signed-in user and server time; entries can't be edited or deleted. Changes made directly in the Firebase console are not captured.
+
+## 12. Published roster (SNV2 → PACU Hub)
+
+**Locking a fortnight in SNV2 publishes it.** SNV2 already saves a fixed copy of every locked fortnight (`state.lockedCycles[cycleMonday]`): each RN's 14 shifts, the support staff and their shifts, plus flags and day comments.
+
+- **Automatic sync** (`features/schedule/hooks/useRosterSync.ts`): while a schedule manager has SNV2 connected and the Schedule tab is open, PACU Hub watches the SNV2 roster live and mirrors it into `pacuhub_rosters/{cycleMonday}`. New or changed locked fortnights are written; unlocked ones (and ones that ended more than 4 weeks ago) are removed. A content fingerprint means unchanged fortnights are never rewritten. Each sync that changes something is written to the activity log ("Roster").
+- **Privacy:** only names and shift codes are copied. **SNV2 day comments and flags are never published.** They can contain day-off reasons. This is enforced in `services/roster/published.ts` (unit-tested), and the rules reject unexpected fields.
+- **Safety:** if the connected SNV2 login has no roster document, nothing is changed.
+- **Staff view** (`components/PublishedRoster.tsx`): the current fortnight by default (else the next), arrows to move between fortnights, the full grid (RNs, then support staff groups), a shift key, and the person's own row highlighted with a **My shifts** strip.
+- **Account ↔ roster name:** an admin links each account to its SNV2 name in **Staff Access** (`pacuhub_users.rosterId`). Only admins can set it, so nobody can attach themselves to someone else's row.
+- **Rules:** read with Schedule (view/manage) or admin; write/delete with Schedule manage only.
+- **Limit:** staff see the latest copy that was synced. If you lock a fortnight while PACU Hub isn't open with SNV2 connected, it appears the next time you open the Schedule tab.

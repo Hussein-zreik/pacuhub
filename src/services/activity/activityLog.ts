@@ -13,7 +13,7 @@ import { firestore } from '@/services/firebase/client';
 import { COLLECTIONS } from '@/services/firestore/collections';
 import { logger } from '@/services/monitoring/logger';
 
-export const ACTIVITY_TYPES = ['access', 'settings', 'dayoff'] as const;
+export const ACTIVITY_TYPES = ['access', 'settings', 'dayoff', 'schedule'] as const;
 export type ActivityType = (typeof ACTIVITY_TYPES)[number];
 
 export interface ActivityEntry {

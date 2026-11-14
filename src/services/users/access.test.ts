@@ -4,7 +4,7 @@ import type { UserProfile } from './types';
 
 const base: UserProfile = {
   uid: 'u1', email: 'n@aub.edu.lb', displayName: 'N', photoURL: null,
-  access: {}, status: 'pending', owner: false, createdAt: null, lastSignInAt: null, updatedAt: null, updatedBy: null,
+  access: {}, status: 'pending', owner: false, createdAt: null, lastSignInAt: null, updatedAt: null, updatedBy: null, rosterId: null,
 };
 
 describe('decideAccess', () => {

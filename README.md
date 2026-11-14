@@ -5,7 +5,7 @@ The digital workspace for the **AUBMC Post-Anesthesia Care Unit**: one place for
 | Module | Status |
 |---|---|
 | Home | ✅ Live |
-| Schedule (SNV2) | ✅ Live: "Request a day off", manager tools, **approve / reject day-off requests in-app** with history and undo; published roster coming soon |
+| Schedule (SNV2) | ✅ Live: **published roster** (locked SNV2 fortnights, own row + My shifts), "Request a day off", **approve / reject day-off requests in-app** with history and undo |
 | PACU Forms | 🛠 Shell in place; forms pending definitions |
 | Unit Audits | 🛠 Shell in place; audit tools pending definitions |
 | Staff Access (admin) | ✅ Live: approve requests, set access per tab and per audit type, deactivate |
