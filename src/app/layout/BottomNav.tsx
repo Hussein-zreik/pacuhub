@@ -18,7 +18,7 @@ export function BottomNav() {
               className={({ isActive }) =>
                 cn(
                   'flex min-h-14 flex-col items-center justify-center gap-0.5 text-[0.6875rem] font-semibold',
-                  isActive ? 'text-brand-700' : 'text-ink-muted',
+                  isActive ? 'text-accent' : 'text-ink-muted',
                 )
               }
             >

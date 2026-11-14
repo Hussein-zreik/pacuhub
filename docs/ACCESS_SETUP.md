@@ -98,6 +98,15 @@ Each person's access is chosen **tab by tab**. For **Unit Audits** it's chosen *
 
 Templates are defined in `src/config/accessPresets.ts`. A tab's levels are declared in its own `module.ts`, and audit types live in `src/features/audits/categories.ts`. A new tab or audit type appears in Staff Access automatically.
 
+## Settings tab
+
+Every approved person has **Settings → My preferences** (dark mode, text size, start page, a shorter personal sign-out time). Admins also see:
+
+- **Unit:** auto sign-out maximum, shift times, the Home announcement, sign-up on/off with allowed email domains, and the default access template for new staff.
+- **Activity log:** a read-only list of access changes, day-off decisions and unit-setting changes.
+
+**Blocking sign-up completely:** turning sign-up off hides the button and the domain list is enforced by the rules, but Firebase Authentication can still create a bare login. For a full stop, also untick *Enable create (sign-up)* in Firebase → Authentication → Settings → User actions. Such a login still gets no access without your approval.
+
 ## Record format (`pacuhub_users/{uid}`)
 
 | Field | Type | Set by |

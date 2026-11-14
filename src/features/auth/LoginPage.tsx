@@ -129,7 +129,7 @@ function SignInForm({ email, setEmail, onForgot, onSignUp }: { email: string; se
             {isSigningIn ? 'Signing in…' : 'Sign in'}
           </Button>
           <div className="text-center">
-            <button type="button" onClick={onForgot} className="text-sm font-semibold text-brand-700 hover:underline">
+            <button type="button" onClick={onForgot} className="text-sm font-semibold text-accent hover:underline">
               Forgot password?
             </button>
           </div>
@@ -139,7 +139,7 @@ function SignInForm({ email, setEmail, onForgot, onSignUp }: { email: string; se
       {passwordEnabled && env.allowSignup && publicSettings.signup.enabled && (
         <p className="mt-6 text-center text-sm text-ink-muted">
           New here?{' '}
-          <button type="button" onClick={onSignUp} className="font-semibold text-brand-700 hover:underline">
+          <button type="button" onClick={onSignUp} className="font-semibold text-accent hover:underline">
             Create an account
           </button>
         </p>
@@ -190,7 +190,7 @@ function ResetForm({ email, setEmail, onBack }: { email: string; setEmail: (v: s
 
   return (
     <>
-      <button type="button" onClick={onBack} className="mb-4 inline-flex items-center gap-1 text-sm font-semibold text-brand-700 hover:underline">
+      <button type="button" onClick={onBack} className="mb-4 inline-flex items-center gap-1 text-sm font-semibold text-accent hover:underline">
         <ArrowLeft className="size-4" /> Back to sign in
       </button>
       <h2 className="text-2xl font-bold tracking-tight text-ink">Reset password</h2>
@@ -263,7 +263,7 @@ function SignUpForm({ email, setEmail, onBack }: { email: string; setEmail: (v: 
 
   return (
     <>
-      <button type="button" onClick={onBack} className="mb-4 inline-flex items-center gap-1 text-sm font-semibold text-brand-700 hover:underline">
+      <button type="button" onClick={onBack} className="mb-4 inline-flex items-center gap-1 text-sm font-semibold text-accent hover:underline">
         <ArrowLeft className="size-4" /> Back to sign in
       </button>
       <h2 className="text-2xl font-bold tracking-tight text-ink">Create your account</h2>

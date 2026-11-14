@@ -31,7 +31,7 @@ export function Sidebar() {
                 className={({ isActive }) =>
                   cn(
                     'group relative flex min-h-12 flex-col items-center justify-center gap-1 rounded-lg px-2 py-2 text-xs font-semibold transition-colors lg:flex-row lg:justify-start lg:gap-3 lg:px-3 lg:text-sm',
-                    isActive ? 'bg-brand-50 text-brand-700' : 'text-ink-muted hover:bg-brand-50/60 hover:text-ink',
+                    isActive ? 'bg-brand-50 text-accent' : 'text-ink-muted hover:bg-brand-50/60 hover:text-ink',
                   )
                 }
               >

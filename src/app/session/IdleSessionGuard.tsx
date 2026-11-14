@@ -41,7 +41,7 @@ export function IdleSessionGuard() {
         </>
       }
     >
-      <p className="text-center text-4xl font-bold tabular-nums text-brand-700" aria-live="polite">
+      <p className="text-center text-4xl font-bold tabular-nums text-accent" aria-live="polite">
         {formatCountdown(remainingMs)}
       </p>
     </Dialog>

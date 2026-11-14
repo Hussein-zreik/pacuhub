@@ -196,7 +196,7 @@ export function AccessEditor({ person, mode, isSelf, saving, error, onSubmit, on
                         type="button"
                         disabled={saving}
                         onClick={() => setMany(areas, option.value)}
-                        className="rounded-md px-2 py-1 text-xs font-semibold text-brand-700 hover:bg-brand-50"
+                        className="rounded-md px-2 py-1 text-xs font-semibold text-accent hover:bg-brand-50"
                       >
                         {option.label}
                       </button>

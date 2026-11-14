@@ -133,8 +133,8 @@ export default function HomePage() {
                   </div>
                   <p className="mt-4 text-lg font-semibold text-ink">{label}</p>
                   <p className="mt-1 flex-1 text-sm text-ink-muted">{description}</p>
-                  {summary.get(id) && <p className="mt-3 text-xs font-semibold text-brand-700">Your access: {summary.get(id)}</p>}
-                  <span className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-brand-700">
+                  {summary.get(id) && <p className="mt-3 text-xs font-semibold text-accent">Your access: {summary.get(id)}</p>}
+                  <span className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-accent">
                     Open <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
                   </span>
                 </Card>

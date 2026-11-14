@@ -22,7 +22,7 @@ export function Avatar({
     return <img src={photoURL} alt="" referrerPolicy="no-referrer" onError={() => setFailed(true)} className={cn(base, 'border border-line object-cover')} />;
   }
   return (
-    <span className={cn(base, 'flex items-center justify-center bg-brand-100 text-sm font-bold text-brand-800')} aria-hidden="true">
+    <span className={cn(base, 'flex items-center justify-center bg-brand-100 text-sm font-bold text-accent-strong')} aria-hidden="true">
       {initials(name, email)}
     </span>
   );

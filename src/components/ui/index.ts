@@ -10,3 +10,5 @@ export * from './PageHeader';
 export * from './Avatar';
 export * from './Input';
 export * from './SegmentedControl';
+export * from './Select';
+export * from './Textarea';
